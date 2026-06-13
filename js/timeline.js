@@ -7,7 +7,7 @@
 //     kind:        'wave' | 'waveless'
 //     startBonus?: number  (only for kind: 'wave')
 //     decay?:      number  (only for kind: 'wave'; points/tic)
-//     bgPortions:   [{ file, appearances, speed, speedTransitionTime, speedEasing }, ...]
+//     bgPortions:   [{ file, appearances }, ...]
 //     eventSets:    [{ quota, events: [...] }, ...]
 //   event:
 //     tic:         number (mandatory; relative to the event set's start tic)

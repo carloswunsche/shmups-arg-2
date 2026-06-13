@@ -133,9 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
   $('blockKind').addEventListener('change', onBlockMetaChange);
   $('blockStartBonus').addEventListener('input', onBlockMetaChange);
   $('blockDecay').addEventListener('input', onBlockMetaChange);
-  $('blockSkipSpeedMul').addEventListener('input', onBlockMetaChange);
-  $('blockSkipTrans').addEventListener('input', onBlockMetaChange);
-  $('blockSkipEasing').addEventListener('change', onBlockMetaChange);
   $('setQuota').addEventListener('input', () => {
     const s = getCurrentEventSet();
     if (!s) return;
@@ -196,9 +193,6 @@ function makeDefaultBlock(kind = 'waveless') {
     kind,
     startBonus: kind === 'wave' ? 1000 : 0,
     decay: 0,
-    skipSpeedMul: 2,
-    skipTransitionTime: 30,
-    skipEasing: 'ease-in-out',
     bgPortions: [makeDefaultPortion()],
     eventSets: [],
   };
@@ -208,9 +202,6 @@ function makeDefaultPortion() {
   return {
     file: 'stage1-bgPortion1.json',
     appearances: -1,
-    speed: 0,
-    speedTransitionTime: 0,
-    speedEasing: 'linear',
   };
 }
 
@@ -304,9 +295,6 @@ function normalizeBlock(b) {
     kind: b.kind === 'wave' ? 'wave' : 'waveless',
     startBonus: b.startBonus || 0,
     decay: b.decay || 0,
-    skipSpeedMul: b.skipSpeedMul !== undefined ? b.skipSpeedMul : 2,
-    skipTransitionTime: b.skipTransitionTime !== undefined ? b.skipTransitionTime : 30,
-    skipEasing: b.skipEasing || 'ease-in-out',
     bgPortions: (b.bgPortions || []).map(p => normalizePortion(p)),
     eventSets: (b.eventSets || []).map(s => normalizeEventSet(s)),
   };
@@ -316,9 +304,6 @@ function normalizePortion(p) {
   return {
     file: p.file || 'stage1-bgPortion1.json',
     appearances: p.appearances !== undefined ? p.appearances : -1,
-    speed: p.speed || 0,
-    speedTransitionTime: p.speedTransitionTime || 0,
-    speedEasing: p.speedEasing || 'linear',
   };
 }
 
@@ -468,9 +453,6 @@ function serializeBlock(b) {
     bgPortions: b.bgPortions.map(p => ({
       file: p.file,
       appearances: p.appearances,
-      speed: p.speed,
-      speedTransitionTime: p.speedTransitionTime,
-      ...(p.speedEasing && p.speedEasing !== 'linear' ? { speedEasing: p.speedEasing } : {}),
     })),
     eventSets: b.eventSets.map(s => ({
       quota: s.quota,
@@ -480,15 +462,6 @@ function serializeBlock(b) {
   if (b.kind === 'wave') {
     out.startBonus = b.startBonus;
     out.decay = b.decay;
-    if (b.skipSpeedMul !== undefined && b.skipSpeedMul !== 2) {
-      out.skipSpeedMul = b.skipSpeedMul;
-    }
-    if (b.skipTransitionTime !== undefined && b.skipTransitionTime !== 30) {
-      out.skipTransitionTime = b.skipTransitionTime;
-    }
-    if (b.skipEasing && b.skipEasing !== 'ease-in-out') {
-      out.skipEasing = b.skipEasing;
-    }
   }
   return out;
 }
@@ -677,17 +650,11 @@ function renderDetail() {
   $('blockKind').value = b.kind;
   $('blockStartBonus').value = b.startBonus;
   $('blockDecay').value = b.decay;
-  $('blockSkipSpeedMul').value = b.skipSpeedMul !== undefined ? b.skipSpeedMul : 2;
-  $('blockSkipTrans').value = b.skipTransitionTime !== undefined ? b.skipTransitionTime : 30;
-  $('blockSkipEasing').value = b.skipEasing || 'ease-in-out';
   const isWave = b.kind === 'wave';
   $('blockStartBonus').disabled = !isWave;
   $('blockDecay').disabled = !isWave;
-  document.querySelectorAll('#blockMeta .wave-only').forEach(el => {
-    el.classList.toggle('hidden', !isWave);
-  });
   $('blockHint').textContent = isWave
-    ? `+${b.startBonus} on block end, −${b.decay}/tic + kill scores; skip ×${b.skipSpeedMul ?? 2} ${b.skipEasing || 'ease-in-out'} over ${b.skipTransitionTime ?? 30} tics`
+    ? `+${b.startBonus} on block end, −${b.decay}/tic + kill scores`
     : 'no wave bonus';
 
   renderPortions(b);
@@ -717,14 +684,6 @@ function renderPortions(b) {
       <input type="text" class="p-file" value="${escapeHtml(p.file)}" list="tilemapFiles">
       <label>Appear</label>
       <input type="number" class="p-app" min="-1" value="${p.appearances}">
-      <label>Speed</label>
-      <input type="number" class="p-speed" step="0.1" value="${p.speed}">
-      <label>Trans</label>
-      <input type="number" class="p-trans" min="0" value="${p.speedTransitionTime}">
-      <label>Ease</label>
-      <select class="p-ease">
-        ${EASING_OPTIONS.map(opt => `<option value="${opt}" ${p.speedEasing === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-      </select>
     `;
     row.appendChild(fields);
 
@@ -755,15 +714,6 @@ function renderPortions(b) {
     });
     fields.querySelector('.p-app').addEventListener('input', function () {
       p.appearances = Math.max(-1, parseInt(this.value) || -1);
-    });
-    fields.querySelector('.p-speed').addEventListener('input', function () {
-      p.speed = parseFloat(this.value) || 0;
-    });
-    fields.querySelector('.p-trans').addEventListener('input', function () {
-      p.speedTransitionTime = Math.max(0, parseInt(this.value) || 0);
-    });
-    fields.querySelector('.p-ease').addEventListener('change', function () {
-      p.speedEasing = this.value;
     });
 
     list.appendChild(row);
@@ -1270,9 +1220,6 @@ function onBlockMetaChange() {
   }
   b.startBonus = parseInt($('blockStartBonus').value) || 0;
   b.decay = parseFloat($('blockDecay').value) || 0;
-  b.skipSpeedMul = Math.max(0, parseFloat($('blockSkipSpeedMul').value) || 0);
-  b.skipTransitionTime = Math.max(0, parseInt($('blockSkipTrans').value) || 0);
-  b.skipEasing = $('blockSkipEasing').value;
   renderDetail();
   renderSidebar();
 }

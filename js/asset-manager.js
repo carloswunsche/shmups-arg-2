@@ -125,7 +125,7 @@ class AssetManager {
   //   }
   // Portion = {
   //   height,                         // row count
-  //   appearances, speed, speedTransitionTime, speedEasing, label,
+  //   appearances, label,
   //   layers: { [layerName]: row[] }  // each row[] is bottom-first, length=mapWidth
   // }
   async _loadBackground(blocks, eventsUrl) {
@@ -174,9 +174,6 @@ class AssetManager {
       blockGroups[item.bi].portions[item.pi] = {
         height: H,
         appearances: item.bp.appearances !== undefined ? item.bp.appearances : DEFAULT_APPEARANCES,
-        speed: item.bp.speed || 0,
-        speedTransitionTime: item.bp.speedTransitionTime || 0,
-        speedEasing: item.bp.speedEasing || 'linear',
         label: item.bp.label || '',
         layers,
       };

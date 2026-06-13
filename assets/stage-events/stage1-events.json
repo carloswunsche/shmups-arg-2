@@ -6,9 +6,7 @@
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": -1
         }
       ],
       "eventSets": [
@@ -16,8 +14,14 @@
           "quota": 4,
           "events": [
             {
-              "tic": 50,
+              "tic": 0,
               "_collapsed": false,
+              "speed": {
+                "value": 1
+              }
+            },
+            {
+              "tic": 50,
               "spawn": [
                 "Popcorn1",
                 {
@@ -63,38 +67,23 @@
             {
               "tic": 170,
               "broadcast": "shotSpread"
-            },
-            {
-              "tic": 180,
-              "_collapsed": false,
-              "speed": {
-                "value": 4,
-                "transitionTime": 100
-              }
             }
           ]
         }
       ],
       "startBonus": 10000,
-      "decay": 5,
-      "skipSpeedMul": 1,
-      "skipTransitionTime": 0,
-      "skipEasing": "linear"
+      "decay": 5
     },
     {
       "kind": "waveless",
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion2.json",
-          "appearances": 1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": 1
         },
         {
           "file": "../backgrounds/stage1-bgPortion3.json",
-          "appearances": 1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": 1
         }
       ],
       "eventSets": [
@@ -103,7 +92,6 @@
           "events": [
             {
               "tic": 0,
-              "_collapsed": false,
               "speed": {
                 "value": 1,
                 "transitionTime": 100
@@ -124,9 +112,7 @@
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion4.json",
-          "appearances": -1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": -1
         }
       ],
       "eventSets": [
@@ -145,25 +131,18 @@
         }
       ],
       "startBonus": 15000,
-      "decay": 10,
-      "skipSpeedMul": 1,
-      "skipTransitionTime": 0,
-      "skipEasing": "linear"
+      "decay": 10
     },
     {
       "kind": "waveless",
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion5.json",
-          "appearances": 1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": 1
         },
         {
           "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1,
-          "speed": 1,
-          "speedTransitionTime": 0
+          "appearances": -1
         }
       ],
       "eventSets": [
