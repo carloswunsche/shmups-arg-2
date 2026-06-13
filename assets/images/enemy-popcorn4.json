@@ -1,0 +1,185 @@
+{ "frames": [
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 350
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 11, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 22, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 33, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 44, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 55, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 66, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 77, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 88, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 99, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 110, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 121, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 132, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 143, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 154, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 165, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 176, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 187, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   },
+   {
+    "filename": "enemy-popcorn4.aseprite",
+    "frame": { "x": 198, "y": 0, "w": 11, "h": 9 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 11, "h": 9 },
+    "sourceSize": { "w": 11, "h": 9 },
+    "duration": 32
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "enemy-popcorn4.png",
+  "format": "RGBA8888",
+  "size": { "w": 209, "h": 9 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "default", "from": 0, "to": 18, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

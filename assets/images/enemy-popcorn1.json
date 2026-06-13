@@ -1,0 +1,32 @@
+{ "frames": [
+   {
+    "filename": "enemy-popcorn1.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 15, "h": 13 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 15, "h": 13 },
+    "sourceSize": { "w": 15, "h": 13 },
+    "duration": 200
+   },
+   {
+    "filename": "enemy-popcorn1.aseprite",
+    "frame": { "x": 15, "y": 0, "w": 15, "h": 13 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 15, "h": 13 },
+    "sourceSize": { "w": 15, "h": 13 },
+    "duration": 200
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "enemy-popcorn1.png",
+  "format": "RGBA8888",
+  "size": { "w": 30, "h": 13 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "default", "from": 0, "to": 1, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

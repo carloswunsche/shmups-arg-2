@@ -1,0 +1,12 @@
+{
+  "entities": [
+    { "file": "player-ship.png", "aseprite": "player-ship.json" },
+    { "file": "player-bullet.png" },
+    { "file": "enemy-popcorn1.png", "aseprite": "enemy-popcorn1.json"},
+    { "file": "enemy-popcorn2.png" },
+    { "file": "enemy-popcorn3.png" },
+    { "file": "enemy-popcorn4.png", "aseprite": "enemy-popcorn4.json"},
+    { "file": "enemy-midboss1.png"},
+    { "file": "enemy-bullet1.png", "aseprite": "enemy-bullet1.json"}
+  ]
+}

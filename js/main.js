@@ -1,0 +1,47 @@
+import InputManager from "./input-manager.js";
+import Viewport from "./viewport.js";
+import GameplayRenderer from "./gameplay-renderer.js";
+import GameLoop from "./game-loop.js";
+import AssetManager from "./asset-manager.js";
+import SceneManager from "./scene-manager.js";
+import MainMenuScene from "./scenes/main-menu-scene.js";
+import GameplayScene from "./scenes/gameplay-scene.js";
+import Debug from "./debug.js";
+
+const input = new InputManager();
+const viewport = new Viewport(160, 120);
+const renderer = new GameplayRenderer(viewport);
+const engine = new GameLoop(60, 60);
+const assets = new AssetManager();
+const sceneManager = new SceneManager();
+
+// Debug stuff
+function update() {sceneManager.updateCurrent()};
+function render() {sceneManager.renderCurrent()};
+Debug.init(engine, renderer, { update, render, bootstrap });
+
+input.init();
+viewport.init();
+bootstrap();
+
+function bootstrap() {
+  console.clear();
+  engine.pause();
+  assets.loadImages('./assets/images/manifest.json')
+  .then(() => assets.loadStageManifest('./assets/stage-events/manifest.json'))
+  .then(() => {
+    setupScenes();
+    startGame();
+  })
+  .catch(err => console.error(err));
+}
+
+function setupScenes() {
+  sceneManager.scenes.mainMenu = new MainMenuScene(sceneManager, viewport, input);
+  sceneManager.scenes.stage1   = new GameplayScene(sceneManager, renderer, input, assets, 'stage1');
+}
+
+function startGame() {
+  sceneManager.switchTo('mainMenu');
+  engine.start(()=>sceneManager.updateCurrent(), ()=>sceneManager.renderCurrent());
+}

@@ -1,0 +1,69 @@
+{ "frames": [
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   },
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 13, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   },
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 26, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   },
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 39, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   },
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 52, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   },
+   {
+    "filename": "player-ship.aseprite",
+    "frame": { "x": 65, "y": 0, "w": 13, "h": 11 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 13, "h": 11 },
+    "sourceSize": { "w": 13, "h": 11 },
+    "duration": 16
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "player-ship.png",
+  "format": "RGBA8888",
+  "size": { "w": 78, "h": 11 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "default", "from": 0, "to": 0, "direction": "forward", "color": "#000000ff" },
+   { "name": "shooting", "from": 1, "to": 5, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

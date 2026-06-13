@@ -1,0 +1,1249 @@
+const EASING_OPTIONS = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
+const ENTITY_CLASSES = ['Popcorn1', 'Popcorn2', 'Popcorn3', 'Midboss1', 'Player', 'PlayerBullet', 'EnemyBullet', 'Particle'];
+const TILEMAP_FILES = [
+  'stage1-bgPortion1.json', 'stage1-bgPortion2.json', 'stage1-bgPortion3.json',
+  'stage1-bgPortion4.json', 'stage1-bgPortion5.json', 'stage1-bgPortion6.json',
+  'stage1-bgPortion7.json', 'stage1-bgPortion8.json',
+  'stage1-bgPortion9.json', 'stage1-bgPortion10.json',
+];
+const EVENTS_AUTOLOAD_PATH = '../assets/stage-events/stage1-events.json';
+
+const SPRITE_FILES = {
+  'Popcorn1': 'enemy-popcorn1.png',
+  'Popcorn2': 'enemy-popcorn2.png',
+  'Popcorn3': 'enemy-popcorn3.png',
+  'Player': 'player-ship.png',
+  'PlayerBullet': 'player-bullet.png',
+  'Midboss1': 'enemy-midboss1.png',
+};
+let entitySprites = {};
+
+function populateDatalist(id, values) {
+  const dl = document.getElementById(id);
+  if (!dl) return;
+  dl.innerHTML = values.map(v => `<option value="${v}">`).join('');
+}
+
+function loadEntitySprites() {
+  const base = '../assets/images/';
+  Object.entries(SPRITE_FILES).forEach(([name, file]) => {
+    const img = new Image();
+    img.onload = () => { entitySprites[name] = img; };
+    img.src = base + file;
+  });
+}
+
+// ---- State ----
+let eventSets = [];
+let selectedIdx = -1;
+let currentFileName = null;
+let fileHandle = null;
+let copiedEvent = null;
+
+// ---- Local backup ----
+// Snapshot the current editor state to localStorage on every save and
+// on demand, so a corrupted file (or a crash during write) is recoverable.
+// `keepExistingData: true` in the File System Access API call also helps —
+// the OS-level data is preserved if the write is interrupted.
+const BACKUP_KEY = 'editor_backup_json';
+const BACKUP_TIMESTAMP_KEY = 'editor_backup_timestamp';
+const BACKUP_FILENAME_KEY = 'editor_backup_filename';
+
+function backup() {
+  if (eventSets.length === 0) return true;
+  try {
+    const data = buildOutput();
+    const json = JSON.stringify(data, null, 2);
+    localStorage.setItem(BACKUP_KEY, json);
+    localStorage.setItem(BACKUP_TIMESTAMP_KEY, String(Date.now()));
+    localStorage.setItem(BACKUP_FILENAME_KEY, currentFileName || '');
+    return true;
+  } catch (err) {
+    console.warn('Backup failed:', err);
+    return false;
+  }
+}
+
+function getBackup() {
+  const json = localStorage.getItem(BACKUP_KEY);
+  if (!json) return null;
+  return {
+    json,
+    timestamp: parseInt(localStorage.getItem(BACKUP_TIMESTAMP_KEY) || '0', 10),
+    filename: localStorage.getItem(BACKUP_FILENAME_KEY) || '',
+  };
+}
+
+function restoreFromBackup() {
+  const b = getBackup();
+  if (!b) {
+    setStatus('No backup available');
+    return;
+  }
+  try {
+    const data = JSON.parse(b.json);
+    loadData(data, b.filename || 'restored.json');
+    const when = new Date(b.timestamp).toLocaleTimeString();
+    setStatus('Restored from backup (' + when + ')');
+  } catch (err) {
+    setStatus('Backup is corrupt: ' + err.message);
+  }
+}
+
+// ---- DOM refs ----
+const $ = id => document.getElementById(id);
+const fileInput = $('fileInput');
+const setList = $('setList');
+const placeholder = $('placeholder');
+const detailContent = $('detailContent');
+const setLabel = $('setLabel');
+const setTilemap = $('setTilemap');
+const eventsList = $('eventsList');
+const statusEl = $('status');
+const fileLabel = $('fileLabel');
+const timelineBar = $('timelineBar');
+const timelineMarkers = $('timelineMarkers');
+const timelineLabels = $('timelineLabels');
+const setWaveRole = $('setWaveRole');
+const setWaveStartBonus = $('setWaveStartBonus');
+const setWaveDecay = $('setWaveDecay');
+const waveHint = $('waveHint');
+const advClear = $('advClear');
+
+
+// ---- Init ----
+document.addEventListener('DOMContentLoaded', () => {
+  populateDatalist('entityClasses', ENTITY_CLASSES);
+  populateDatalist('tilemapFiles', TILEMAP_FILES);
+
+  $('btnLoad').addEventListener('click', () => fileInput.click());
+  $('btnSave').addEventListener('click', saveFile);
+  $('btnBackup').addEventListener('click', () => {
+    if (backup()) {
+      const ts = new Date(parseInt(localStorage.getItem(BACKUP_TIMESTAMP_KEY) || '0', 10)).toLocaleTimeString();
+      setStatus('Backed up at ' + ts);
+    } else {
+      setStatus('Backup failed (localStorage full?)');
+    }
+  });
+  $('btnRestore').addEventListener('click', restoreFromBackup);
+  $('btnAddSet').addEventListener('click', addEventSet);
+  $('btnAddEvent').addEventListener('click', addEvent);
+  $('btnPasteEvent').addEventListener('click', pasteEvent);
+  $('btnExpandAll').addEventListener('click', () => setAllCards(false));
+  $('btnCollapseAll').addEventListener('click', () => setAllCards(true));
+
+  fileInput.addEventListener('change', onFileSelected);
+  setLabel.addEventListener('input', onSetMetaChange);
+  document.getElementById('spriteModal').addEventListener('click', function () {
+    this.classList.add('hidden');
+  });
+  setTilemap.addEventListener('input', onSetMetaChange);
+  setWaveRole.addEventListener('change', onSetMetaChange);
+  setWaveStartBonus.addEventListener('input', onSetMetaChange);
+  setWaveDecay.addEventListener('input', onSetMetaChange);
+  advClear.addEventListener('change', onSetMetaChange);
+
+  setList.addEventListener('scroll', () => {
+    localStorage.setItem(scrollKey(), setList.scrollTop);
+  });
+
+  // Ctrl+S to save
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveFile();
+    }
+  });
+
+  // Drag & drop
+  document.addEventListener('dragover', e => { e.preventDefault(); });
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.json')) loadFile(file);
+  });
+
+  $('btnStartAt0').addEventListener('click', () => { $('testFromIdx').value = 0; });
+  $('btnStartAtSelected').addEventListener('click', () => {
+    if (selectedIdx >= 0) $('testFromIdx').value = selectedIdx;
+  });
+
+  // Load entity sprites for timeline previews
+  loadEntitySprites();
+
+  // Load real stage events by default. Read as text first so we can
+  // detect a 0-byte / corrupted file and offer to restore from backup
+  // instead of failing silently.
+  fetch(EVENTS_AUTOLOAD_PATH)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(text => {
+      if (!text || !text.trim()) {
+        const b = getBackup();
+        if (b) {
+          try {
+            const data = JSON.parse(b.json);
+            loadData(data, 'stage1-events.json');
+            setStatus('stage1-events.json is empty — restored from local backup');
+            return null;
+          } catch (err) {
+            setStatus('stage1-events.json is empty and backup is corrupt');
+            return null;
+          }
+        }
+        setStatus('stage1-events.json is empty, no backup available');
+        return null;
+      }
+      return JSON.parse(text);
+    })
+    .then(data => { if (data) loadData(data, 'stage1-events.json'); })
+    .catch(() => setStatus('Could not load stage1-events.json — open a file or load sample'));
+});
+
+// ---- File I/O ----
+function onFileSelected(e) {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+}
+
+function loadFile(file) {
+  currentFileName = file.name;
+  fileHandle = null;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const content = e.target.result;
+    if (!content || !content.trim()) {
+      const b = getBackup();
+      if (b && confirm('File is empty. Restore from local backup?')) {
+        try {
+          const data = JSON.parse(b.json);
+          loadData(data, file.name);
+          setStatus('Restored from local backup');
+          return;
+        } catch (err) {
+          setStatus('Backup is also corrupt: ' + err.message);
+          return;
+        }
+      }
+      setStatus('File is empty (no backup)');
+      return;
+    }
+    try {
+      const data = JSON.parse(content);
+      loadData(data, file.name);
+    } catch (err) {
+      setStatus('Error: Invalid JSON — ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadData(data, name) {
+  const arr = data.events || data;
+  if (!Array.isArray(arr)) {
+    setStatus('Error: Expected an array of event sets');
+    return;
+  }
+  eventSets = arr.map((s, i) => normalizeSet(s, i));
+  selectedIdx = data._activeIdx !== undefined ? data._activeIdx : (eventSets.length > 0 ? 0 : -1);
+  if (selectedIdx >= eventSets.length) selectedIdx = eventSets.length - 1;
+  $('testFromIdx').value = data._testFromIdx !== undefined ? data._testFromIdx : 0;
+  fileLabel.textContent = name;
+  setStatus(`Loaded ${eventSets.length} event set(s)`);
+  loadPortionPreviews().then(() => {
+    renderAll();
+    const saved = parseInt(localStorage.getItem(scrollKey()), 10) || 0;
+    requestAnimationFrame(() => { setList.scrollTop = saved; });
+    setTimeout(() => { setList.scrollTop = saved; }, 50);
+  });
+}
+
+function scrollKey() {
+  return 'editor_sidebar_scroll:' + (currentFileName || 'default');
+}
+
+async function loadPreviewFor(s) {
+  if (!s.tilemap) { s._previewImg = null; return; }
+  const portionUrl = s.tilemap;
+  try {
+    const data = await fetch(portionUrl).then(r => r.json());
+    let tsPath = data.tileset || data.tilesets?.[0]?.image || '';
+    if (!tsPath) return;
+    if (!tsPath.startsWith('/')) {
+      const base = portionUrl.substring(0, portionUrl.lastIndexOf('/') + 1);
+      tsPath = base + tsPath;
+    }
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = tsPath;
+    });
+    s._previewImg = renderPortionPreview(data, img);
+  } catch (_) {
+    // preview unavailable; leave any existing preview in place
+  }
+}
+
+function loadPortionPreviews() {
+  return Promise.all(eventSets.map(s => loadPreviewFor(s)));
+}
+
+function renderPortionPreview(data, tilesetImg) {
+  const W = data.width;
+  const H = data.height;
+  const tileW = data.tilewidth || 8;
+  const tileH = data.tileheight || 8;
+  const ts = data.tilesets && data.tilesets[0];
+  const tsCols = ts ? ts.columns : 6;
+
+  const scale = 10;
+  const cw = W * scale;
+  const ch = H * scale;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  (data.layers || []).forEach(layer => {
+    const flat = layer.data;
+    if (!flat) return;
+    for (let r = 0; r < H; r++) {
+      for (let c = 0; c < W; c++) {
+        const gid = flat[r * W + c];
+        if (!gid || gid === 0) continue;
+        const idx = gid - 1;
+        const sx = (idx % tsCols) * tileW;
+        const sy = Math.floor(idx / tsCols) * tileH;
+        ctx.drawImage(tilesetImg, sx, sy, tileW, tileH, c * scale, r * scale, scale, scale);
+      }
+    }
+  });
+
+  const img = document.createElement('img');
+  img.src = canvas.toDataURL();
+  img.className = 'set-preview';
+  img.width = cw;
+  img.height = ch;
+  img.alt = '';
+  return img;
+}
+
+function normalizeSet(s, idx) {
+  const adv = s.advance || {};
+  return {
+    label: s.label || '',
+    tilemap: s.tilemap || '',
+    wave: s.wave
+      ? { role: s.wave.role || 'in', startBonus: s.wave.startBonus || 0, decay: s.wave.decay || 0 }
+      : null,
+    advance: {
+      clear: adv.clear || false,
+    },
+    events: (s.events || []).map(e => {
+      const copy = { ...e };
+      copy._collapsed = e._collapsed !== false;
+      denormalizeEvent(copy);
+      return copy;
+    })
+  };
+}
+
+async function saveFile() {
+  if (eventSets.length === 0) {
+    setStatus('Nothing to save');
+    return;
+  }
+  const data = buildOutput();
+  const json = JSON.stringify(data, null, 2);
+  backup();
+
+  if (fileHandle) {
+    const writable = await fileHandle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    setStatus('Saved to ' + fileHandle.name);
+    return;
+  }
+
+  if ('showSaveFilePicker' in window) {
+    const suggested = currentFileName || 'stage1-events.json';
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: suggested,
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      fileHandle = handle;
+      currentFileName = handle.name;
+      fileLabel.textContent = handle.name;
+      setStatus('Saved to ' + handle.name);
+    } catch (err) {
+      if (err.name !== 'AbortError') setStatus('Save cancelled or failed');
+    }
+    return;
+  }
+
+  const name = currentFileName || 'events.json';
+  download(json, name, 'application/json');
+  setStatus('Downloaded as ' + name);
+}
+
+function buildOutput() {
+  const testFrom = parseInt($('testFromIdx').value) || 0;
+  const out = {
+    _activeIdx: selectedIdx >= 0 ? selectedIdx : 0,
+    _testFromIdx: testFrom,
+    events: eventSets.map(s => {
+      const o = { label: s.label };
+      if (s.tilemap) o.tilemap = s.tilemap;
+      if (s.wave) {
+        o.wave = { role: s.wave.role };
+        if (s.wave.role === 'start' || s.wave.role === 'start+end') {
+          o.wave.startBonus = s.wave.startBonus;
+          o.wave.decay = s.wave.decay;
+        }
+      }
+      const adv = s.advance;
+      if (adv.clear) {
+        o.advance = { clear: true };
+      }
+      o.events = s.events.map(e => serializeEvent(e));
+      return o;
+    })
+  };
+  return out;
+}
+
+function serializeEvent(e) {
+  const out = {};
+  out.tic = e.tic;
+  if (e._collapsed === false) out._collapsed = false;
+  if (e._disabled) out._disabled = true;
+
+  if (e._spawnEnabled && e._spawnClass) {
+    out.spawn = [e._spawnClass];
+    if (e._spawnParams && e._spawnParams.length > 0) {
+      const obj = {};
+      e._spawnParams.forEach(p => {
+        if (p.key && p.key.trim()) {
+          obj[p.key.trim()] = parseValue(p.val);
+        }
+      });
+      if (Object.keys(obj).length > 0) out.spawn.push(obj);
+    }
+    if (e._spawnCount > 1) out.spawnCount = e._spawnCount;
+    if (e._spawnInterval) out.spawnInterval = e._spawnInterval;
+  }
+
+  if (e._speedEnabled && e._speedValue !== undefined && e._speedValue !== '') {
+    const sp = { value: Number(e._speedValue) };
+    if (e._speedTransition !== undefined && e._speedTransition !== '') sp.transitionTime = Number(e._speedTransition);
+    if (e._speedEasing && e._speedEasing !== 'linear') sp.easing = e._speedEasing;
+    out.speed = sp;
+  }
+
+  if (e._broadcastEnabled && e._broadcast) {
+    out.broadcast = e._broadcast;
+  }
+
+  return out;
+}
+
+function parseValue(str) {
+  str = str.trim();
+  if (str === 'true') return true;
+  if (str === 'false') return false;
+  if (str === 'null') return null;
+  if (str !== '' && !isNaN(Number(str))) return Number(str);
+  // Arrays and objects: parse via JSON so the spawn runtime can do
+  // per-spawn index lookup (e.g. x: [10, 40, 80, 110]).
+  if (str.startsWith('[') || str.startsWith('{')) {
+    try { return JSON.parse(str); } catch (e) { return str; }
+  }
+  return str;
+}
+
+// True if any spawn param value parses to an array (i.e. a per-spawn list).
+function hasPerSpawnLists(e) {
+  if (!e._spawnParams) return false;
+  return e._spawnParams.some(p => {
+    if (!p.key || !p.key.trim()) return false;
+    const v = parseValue(p.val);
+    return Array.isArray(v);
+  });
+}
+
+// Short summary of which params are per-spawn lists, for the hint badge.
+function perSpawnSummary(e) {
+  if (!e._spawnParams) return '';
+  const listKeys = e._spawnParams
+    .filter(p => p.key && p.key.trim() && Array.isArray(parseValue(p.val)))
+    .map(p => `${p.key.trim()}(${parseValue(p.val).length})`);
+  return listKeys.join(', ');
+}
+
+// Update the per-spawn hint badge based on current event state.
+function refreshPerSpawnHint(card, ev) {
+  const hint = card.querySelector('.per-spawn-hint');
+  if (!hint) return;
+  if (hasPerSpawnLists(ev)) {
+    hint.classList.remove('hidden');
+    const detail = hint.querySelector('.hint-detail');
+    if (detail) detail.textContent = perSpawnSummary(ev);
+  } else {
+    hint.classList.add('hidden');
+  }
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---- Rendering ----
+function renderAll() {
+  renderSidebar();
+  if (selectedIdx >= 0 && selectedIdx < eventSets.length) {
+    renderDetail(selectedIdx);
+  } else {
+    placeholder.classList.remove('hidden');
+    detailContent.classList.add('hidden');
+  }
+}
+
+function renderSidebar() {
+  const savedScroll = setList.scrollTop;
+  setList.innerHTML = '';
+  for (let ri = 0; ri < eventSets.length; ri++) {
+    const i = eventSets.length - 1 - ri;
+    const s = eventSets[i];
+
+    const div = document.createElement('div');
+    div.className = 'set-item' + (i === selectedIdx ? ' selected' : '');
+    div.dataset.idx = i;
+
+    const previewSlot = document.createElement('div');
+    previewSlot.className = 'preview-slot';
+    previewSlot.dataset.idx = i;
+    if (s._previewImg) {
+      previewSlot.appendChild(s._previewImg.cloneNode(true));
+    } else {
+      const ph = document.createElement('div');
+      ph.style.cssText = 'width:100%;height:80px;background:var(--surface2);';
+      previewSlot.appendChild(ph);
+    }
+    div.appendChild(previewSlot);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'set-overlay';
+
+    const idxSpan = document.createElement('span');
+    idxSpan.className = 'set-idx';
+    idxSpan.textContent = `#${i}`;
+    overlay.appendChild(idxSpan);
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'set-label';
+    labelSpan.textContent = s.label;
+    overlay.appendChild(labelSpan);
+
+    const appearSpan = document.createElement('span');
+    appearSpan.className = 'set-appearances';
+    appearSpan.textContent = s.appearances;
+    overlay.appendChild(appearSpan);
+
+    div.appendChild(overlay);
+
+    const moveBtns = document.createElement('div');
+    moveBtns.className = 'set-move';
+
+    const upBtn = document.createElement('button');
+    upBtn.className = 'btn-move-up';
+    upBtn.textContent = '▲';
+    upBtn.title = 'Move up';
+    upBtn.disabled = i === eventSets.length - 1;
+    moveBtns.appendChild(upBtn);
+
+    const downBtn = document.createElement('button');
+    downBtn.className = 'btn-move-down';
+    downBtn.textContent = '▼';
+    downBtn.title = 'Move down';
+    downBtn.disabled = i === 0;
+    moveBtns.appendChild(downBtn);
+
+    div.appendChild(moveBtns);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-del-set';
+    delBtn.title = 'Remove this event set';
+    delBtn.textContent = '✕';
+    div.appendChild(delBtn);
+
+    div.addEventListener('click', e => {
+      if (e.target.closest('.btn-del-set')) return;
+      selectEventSet(parseInt(div.dataset.idx));
+    });
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      removeEventSet(parseInt(div.dataset.idx));
+    });
+
+    upBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      moveSet(i, 1);
+    });
+    downBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      moveSet(i, -1);
+    });
+
+    setList.appendChild(div);
+  }
+  setList.scrollTop = savedScroll;
+}
+
+function selectEventSet(i) {
+  selectedIdx = i;
+  renderAll();
+}
+
+function renderDetail(idx) {
+  placeholder.classList.add('hidden');
+  detailContent.classList.remove('hidden');
+
+  const s = eventSets[idx];
+  setLabel.value = s.label;
+  setTilemap.value = s.tilemap ? s.tilemap.split('/').pop() : '';
+  const hasWave = !!s.wave;
+  const role = s.wave ? s.wave.role : 'none';
+  setWaveRole.value = role;
+  setWaveStartBonus.value = (s.wave && (s.wave.startBonus !== undefined)) ? s.wave.startBonus : 1000;
+  setWaveDecay.value = (s.wave && (s.wave.decay !== undefined)) ? s.wave.decay : 0;
+  waveHint.textContent = _waveHintFor(s, idx);
+  document.querySelectorAll('.wave-start-fields').forEach(el => {
+    el.style.display = (role === 'start' || role === 'start+end') ? '' : 'none';
+  });
+  const adv = s.advance || {};
+  advClear.checked = adv.clear || false;
+
+  renderTimeline(s);
+  renderEventsList(s);
+}
+
+function renderTimeline(s) {
+  const events = s.events;
+  if (events.length === 0) {
+    timelineMarkers.innerHTML = '';
+    timelineLabels.innerHTML = '';
+    return;
+  }
+
+  const maxTic = Math.max(500, ...events.map(e => e.tic));
+  const barWidth = timelineMarkers.parentElement.clientWidth - 20 || 600;
+  if (barWidth <= 0) return;
+
+  timelineMarkers.innerHTML = '';
+  timelineLabels.innerHTML = '';
+
+  events.filter(e => !e._disabled).forEach(e => {
+    const pct = (e.tic / maxTic) * 100;
+    const types = [];
+    if (e._spawnEnabled) types.push('spawn');
+    if (e._speedEnabled) types.push('speed');
+    const type = types.length === 0 ? 'spawn' : (types.length === 1 ? types[0] : 'mixed');
+
+    const marker = document.createElement('div');
+    marker.className = `tl-marker type-${type}`;
+    marker.style.left = `${pct}%`;
+    marker.style.height = `${12 + (e._spawnCount > 1 ? Math.min(e._spawnCount * 3, 18) : 0)}px`;
+    marker.title = `tic:${e.tic} ${types.join('+')}`;
+    timelineMarkers.appendChild(marker);
+
+    if (e._spawnEnabled && e._spawnClass && entitySprites[e._spawnClass]) {
+      const sprite = document.createElement('img');
+      sprite.src = entitySprites[e._spawnClass].src;
+      sprite.className = 'tl-sprite';
+      sprite.style.left = `${pct}%`;
+      sprite.title = `tic:${e.tic} spawn ${e._spawnClass}`;
+      sprite.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        const m = document.getElementById('spriteModal');
+        const img = m.querySelector('img');
+        img.src = this.src;
+        img.onload = () => { img.style.width = (img.naturalWidth * 8) + 'px'; };
+        if (img.complete) img.style.width = (img.naturalWidth * 8) + 'px';
+        m.classList.remove('hidden');
+      });
+      timelineMarkers.appendChild(sprite);
+    }
+
+    const lbl = document.createElement('div');
+    lbl.className = 'tl-label';
+    lbl.style.left = `${pct}%`;
+    const spawnName = e._spawnEnabled && e._spawnClass ? e._spawnClass : '';
+    const labelParts = types.map(t => t === 'spawn' && spawnName ? spawnName : t);
+    lbl.innerHTML = `<span class="tl-tic">${e.tic}</span> ${labelParts.map(escapeHtml).join('+')}`;
+    timelineLabels.appendChild(lbl);
+  });
+}
+
+function renderEventsList(s) {
+  eventsList.innerHTML = '';
+
+  s.events.forEach((e, i) => {
+    const card = createEventCard(s, i);
+    if (e._collapsed === false) card.classList.remove('collapsed');
+    eventsList.appendChild(card);
+  });
+}
+
+function denormalizeEvent(e) {
+  if (Array.isArray(e.spawn)) {
+    e._spawnEnabled = true;
+    e._spawnClass = e.spawn[0] || '';
+    e._spawnParams = [];
+    if (e.spawn[1] && typeof e.spawn[1] === 'object') {
+      for (const [k, v] of Object.entries(e.spawn[1])) {
+        // Arrays/objects need explicit JSON.stringify so the brackets
+        // survive the round-trip; String([10,20]) would drop them to
+        // "10,20" and the array is lost on re-save.
+        const val = (Array.isArray(v) || (v && typeof v === 'object')) ? JSON.stringify(v) : String(v);
+        e._spawnParams.push({ key: k, val });
+      }
+    }
+  } else {
+    e._spawnEnabled = false;
+    e._spawnClass = '';
+    e._spawnParams = [];
+  }
+  e._spawnCount = e.spawnCount || 1;
+  e._spawnInterval = e.spawnInterval || 0;
+
+  if (e.speed && typeof e.speed === 'object') {
+    e._speedEnabled = true;
+    e._speedValue = e.speed.value ?? '';
+    e._speedTransition = e.speed.transitionTime ?? '';
+    e._speedEasing = e.speed.easing || 'linear';
+  } else {
+    e._speedEnabled = false;
+    e._speedValue = '';
+    e._speedTransition = '';
+    e._speedEasing = 'linear';
+  }
+
+  if (typeof e.broadcast === 'string' && e.broadcast) {
+    e._broadcastEnabled = true;
+    e._broadcast = e.broadcast;
+  } else {
+    e._broadcastEnabled = false;
+    e._broadcast = '';
+  }
+
+  e._disabled = e._disabled || false;
+}
+
+function buildEventSummary(e) {
+  const parts = [];
+  parts.push('@' + (e.tic ?? 0));
+  if (e._spawnEnabled && e._spawnClass) {
+    let s = 'spawn ' + e._spawnClass;
+    if (e._spawnCount > 1) s += ' x' + e._spawnCount;
+    parts.push(s);
+  }
+  if (e._speedEnabled && e._speedValue !== '') {
+    parts.push('speed ' + e._speedValue);
+  }
+  if (e._broadcastEnabled && e._broadcast) {
+    parts.push('broadcast ' + e._broadcast);
+  }
+  return parts.join(', ') || '—';
+}
+
+function updateSummary(card, e) {
+  const el = card.querySelector('.event-summary');
+  if (el) el.textContent = buildEventSummary(e);
+}
+
+function createEventCard(s, evIdx) {
+  const e = s.events[evIdx];
+  const card = document.createElement('div');
+  card.className = 'event-card collapsed' + (e._disabled ? ' event-disabled' : '');
+  card.dataset.evIdx = evIdx;
+
+  const summary = buildEventSummary(e);
+
+  card.innerHTML = `
+    <div class="event-header">
+      <div class="event-title">
+        <input type="checkbox" class="ev-toggle-event" ${e._disabled ? '' : 'checked'} title="Enable/disable this event">
+        <span class="event-num">#${evIdx + 1}</span>
+        <span class="event-summary">${escapeHtml(summary)}</span>
+      </div>
+      <div class="event-actions">
+        <button class="btn-event-up" title="Move event up" ${evIdx === 0 ? 'disabled' : ''}>▲</button>
+        <button class="btn-event-down" title="Move event down" ${evIdx === s.events.length - 1 ? 'disabled' : ''}>▼</button>
+        <button class="btn-del-event" title="Remove this event">✕</button>
+      </div>
+    </div>
+    <div class="event-tic-row">
+      <label>Tic</label>
+      <input type="number" class="ev-tic" value="${e.tic}" min="0">
+    </div>
+    <div class="event-fields">
+      <!-- Spawn -->
+      <div class="event-section ${e._spawnEnabled ? 'section-active' : ''}">
+        <label class="section-toggle">
+          <input type="checkbox" class="ev-toggle" data-field="spawn" ${e._spawnEnabled ? 'checked' : ''}>
+          <span class="toggle-label">Spawn</span>
+        </label>
+        <div class="section-body ${e._spawnEnabled ? '' : 'hidden'}">
+          <div class="field-row">
+            <label>Class</label>
+            <input type="text" class="ev-spawn-class" value="${escapeHtml(e._spawnClass)}" list="entityClasses">
+            <label>Count</label>
+            <button type="button" class="ev-spawn-count-minus" title="Decrease count">−</button>
+            <input type="number" class="ev-spawn-count" value="${e._spawnCount}" min="1" max="99">
+            <button type="button" class="ev-spawn-count-plus" title="Increase count">+</button>
+            <label class="interval-label ${e._spawnCount > 1 ? '' : 'hidden'}">Interval</label>
+            <input type="number" class="ev-spawn-interval ${e._spawnCount > 1 ? '' : 'hidden'}" value="${e._spawnInterval}" min="0" placeholder="tics">
+          </div>
+          <div class="per-spawn-hint ${hasPerSpawnLists(e) ? '' : 'hidden'}">
+            <span class="hint-badge">per-spawn list</span>
+            <span class="hint-detail">${perSpawnSummary(e)}</span>
+          </div>
+          <div class="sparam-section">
+            <div class="sparam-header">
+              <button class="btn-add-sparam">+</button>
+              <span>Spawn Params</span>
+            </div>
+            <div class="sparam-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed -->
+      <div class="event-section ${e._speedEnabled ? 'section-active' : ''}">
+        <label class="section-toggle">
+          <input type="checkbox" class="ev-toggle" data-field="speed" ${e._speedEnabled ? 'checked' : ''}>
+          <span class="toggle-label">Speed</span>
+        </label>
+        <div class="section-body ${e._speedEnabled ? '' : 'hidden'}">
+          <div class="field-row">
+            <label>Value</label>
+            <input type="number" class="ev-speed-value" value="${e._speedValue}" step="0.1" min="0">
+            <label>Transition</label>
+            <input type="number" class="ev-speed-transition" value="${e._speedTransition}" placeholder="tics" min="0">
+            <label>Easing</label>
+            <select class="ev-speed-easing">
+              ${EASING_OPTIONS.map(opt => `<option value="${opt}" ${e._speedEasing === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Broadcast -->
+      <div class="event-section ${e._broadcastEnabled ? 'section-active' : ''}">
+        <label class="section-toggle">
+          <input type="checkbox" class="ev-toggle" data-field="broadcast" ${e._broadcastEnabled ? 'checked' : ''}>
+          <span class="toggle-label">Broadcast</span>
+        </label>
+        <div class="section-body ${e._broadcastEnabled ? '' : 'hidden'}">
+          <div class="field-row">
+            <label>Event name</label>
+            <input type="text" class="ev-broadcast" value="${escapeHtml(e._broadcast)}" placeholder="e.g. shot_at_player">
+          </div>
+        </div>
+      </div>
+
+      <!-- Switch -->
+      <div class="event-section">
+        <div class="switch-section">
+          <button class="btn-copy-event" title="Copy this event">Copy event</button>
+          <button class="btn-dup-event" title="Duplicate this event">Duplicate event</button>
+          <span class="switch-divider">|</span>
+          <label>Swap actions with event</label>
+          <input type="number" class="ev-switch-idx" min="1" max="${s.events.length}" placeholder="#" value="">
+          <button class="btn-switch">Go</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  card.querySelector('.event-header').addEventListener('click', function (e) {
+    if (e.target.closest('.event-actions')) return;
+    if (e.target.closest('.ev-toggle-event')) return;
+    card.classList.toggle('collapsed');
+    s.events[evIdx]._collapsed = card.classList.contains('collapsed');
+  });
+
+  card.querySelector('.btn-del-event').addEventListener('click', () => removeEvent(evIdx));
+  card.querySelector('.btn-dup-event').addEventListener('click', () => duplicateEvent(evIdx));
+  card.querySelector('.btn-event-up').addEventListener('click', () => moveEvent(evIdx, -1));
+  card.querySelector('.btn-event-down').addEventListener('click', () => moveEvent(evIdx, 1));
+
+  const toggleEv = card.querySelector('.ev-toggle-event');
+  if (toggleEv) toggleEv.addEventListener('change', function () {
+    s.events[evIdx]._disabled = !this.checked;
+    card.classList.toggle('event-disabled', !this.checked);
+    renderTimeline(s);
+  });
+
+  card.querySelector('.btn-copy-event').addEventListener('click', function (e) {
+    e.stopPropagation();
+    copiedEvent = JSON.parse(JSON.stringify(s.events[evIdx]));
+    $('btnPasteEvent').disabled = false;
+    setStatus('Copied event');
+  });
+
+  card.querySelector('.ev-tic').addEventListener('input', function () {
+    s.events[evIdx].tic = parseInt(this.value) || 0;
+    updateSummary(card, s.events[evIdx]);
+    renderTimeline(s);
+    renderSidebar();
+  });
+
+  const br = card.querySelector('.ev-broadcast');
+  if (br) br.addEventListener('input', function () {
+    s.events[evIdx]._broadcast = this.value;
+    updateSummary(card, s.events[evIdx]);
+  });
+
+  card.querySelector('.btn-switch').addEventListener('click', function () {
+    const input = card.querySelector('.ev-switch-idx');
+    const target = parseInt(input.value);
+    if (!target || target < 1 || target > s.events.length || target === evIdx + 1) return;
+    const toIdx = target - 1;
+    swapEventActions(s.events[evIdx], s.events[toIdx]);
+    input.value = '';
+    renderDetail(selectedIdx);
+    setStatus(`Swapped actions event #${evIdx + 1} <-> #${target}`);
+  });
+
+  card.querySelectorAll('.ev-toggle').forEach(cb => {
+    cb.addEventListener('change', function () {
+      const field = this.dataset.field;
+      s.events[evIdx]['_' + field + 'Enabled'] = this.checked;
+      updateSummary(card, s.events[evIdx]);
+      renderDetail(selectedIdx);
+    });
+  });
+
+  const sc = card.querySelector('.ev-spawn-class');
+  if (sc) sc.addEventListener('input', function () {
+    s.events[evIdx]._spawnClass = this.value;
+    updateSummary(card, s.events[evIdx]);
+  });
+
+  const scnt = card.querySelector('.ev-spawn-count');
+  if (scnt) scnt.addEventListener('input', function () {
+    s.events[evIdx]._spawnCount = parseInt(this.value) || 1;
+    const multi = s.events[evIdx]._spawnCount > 1;
+    card.querySelector('.ev-spawn-interval').classList.toggle('hidden', !multi);
+    card.querySelector('.interval-label').classList.toggle('hidden', !multi);
+    updateSummary(card, s.events[evIdx]);
+    renderTimeline(s);
+  });
+
+  const bumpCount = (delta) => {
+    const cur = s.events[evIdx]._spawnCount || 1;
+    const next = Math.max(1, Math.min(99, cur + delta));
+    s.events[evIdx]._spawnCount = next;
+    scnt.value = next;
+    scnt.dispatchEvent(new Event('input'));
+  };
+  const scntMinus = card.querySelector('.ev-spawn-count-minus');
+  const scntPlus = card.querySelector('.ev-spawn-count-plus');
+  if (scntMinus) scntMinus.addEventListener('click', () => bumpCount(-1));
+  if (scntPlus) scntPlus.addEventListener('click', () => bumpCount(1));
+
+  const spr = card.querySelector('.ev-spawn-interval');
+  if (spr) spr.addEventListener('input', function () {
+    s.events[evIdx]._spawnInterval = parseInt(this.value) || 0;
+  });
+
+  const sparamList = card.querySelector('.sparam-list');
+  const btnAddSparam = card.querySelector('.btn-add-sparam');
+
+  function renderSpawnParams() {
+    if (!sparamList) return;
+    sparamList.innerHTML = '';
+    const params = s.events[evIdx]._spawnParams || [];
+    params.forEach((p, pi) => {
+      const row = document.createElement('div');
+      row.className = 'ov-row';
+      row.innerHTML = `
+        <input class="ov-key" type="text" value="${escapeHtml(p.key)}" placeholder="key" spellcheck="false">
+        <input class="ov-val" type="text" value="${escapeHtml(p.val)}" placeholder="value" spellcheck="false">
+        <button class="btn-del-ov">&#10005;</button>
+      `;
+      row.querySelector('.ov-key').addEventListener('input', function () {
+        s.events[evIdx]._spawnParams[pi].key = this.value;
+      });
+      row.querySelector('.ov-val').addEventListener('input', function () {
+        s.events[evIdx]._spawnParams[pi].val = this.value;
+        refreshPerSpawnHint(card, s.events[evIdx]);
+      });
+      row.querySelector('.btn-del-ov').addEventListener('click', () => {
+        s.events[evIdx]._spawnParams.splice(pi, 1);
+        renderSpawnParams();
+        refreshPerSpawnHint(card, s.events[evIdx]);
+      });
+      sparamList.appendChild(row);
+    });
+  }
+
+  renderSpawnParams();
+
+  if (btnAddSparam) btnAddSparam.addEventListener('click', () => {
+    if (!s.events[evIdx]._spawnParams) s.events[evIdx]._spawnParams = [];
+    s.events[evIdx]._spawnParams.push({ key: '', val: '' });
+    renderSpawnParams();
+    refreshPerSpawnHint(card, s.events[evIdx]);
+  });
+
+  const sv = card.querySelector('.ev-speed-value');
+  if (sv) sv.addEventListener('input', function () {
+    s.events[evIdx]._speedValue = this.value;
+    updateSummary(card, s.events[evIdx]);
+  });
+
+  const st = card.querySelector('.ev-speed-transition');
+  if (st) st.addEventListener('input', function () {
+    s.events[evIdx]._speedTransition = this.value;
+  });
+
+  const se = card.querySelector('.ev-speed-easing');
+  if (se) se.addEventListener('change', function () {
+    s.events[evIdx]._speedEasing = this.value;
+  });
+
+  return card;
+}
+
+// ---- Data manipulation ----
+const ACTION_KEYS = [
+  '_spawnEnabled', '_spawnClass', '_spawnParams', '_spawnCount', '_spawnInterval',
+  '_speedEnabled', '_speedValue', '_speedTransition', '_speedEasing',
+  '_broadcastEnabled', '_broadcast',
+  '_disabled'
+];
+
+function swapEventActions(a, b) {
+  for (const key of ACTION_KEYS) {
+    const tmp = a[key];
+    a[key] = b[key];
+    b[key] = tmp;
+  }
+}
+
+function addEventSet() {
+  const insertAt = selectedIdx >= 0 ? selectedIdx + 1 : eventSets.length;
+  eventSets.splice(insertAt, 0, {
+    label: '',
+    tilemap: '',
+    wave: null,
+    advance: { clear: true },
+    events: []
+  });
+  selectedIdx = insertAt;
+  renderAll();
+  setStatus(`Added event set #${selectedIdx}`);
+}
+
+function removeEventSet(idx) {
+  if (eventSets.length <= 1) {
+    setStatus('Cannot remove the last event set');
+    return;
+  }
+  eventSets.splice(idx, 1);
+  if (selectedIdx >= eventSets.length) selectedIdx = eventSets.length - 1;
+  renderAll();
+  setStatus(`Removed event set #${idx}`);
+}
+
+function moveSet(idx, dir) {
+  const target = idx + dir;
+  if (target < 0 || target >= eventSets.length) return;
+  [eventSets[idx], eventSets[target]] = [eventSets[target], eventSets[idx]];
+  selectedIdx = target;
+  renderAll();
+  setStatus(`Moved event set #${idx} → #${target}`);
+}
+
+function addEvent() {
+  if (selectedIdx < 0 || selectedIdx >= eventSets.length) return;
+  const s = eventSets[selectedIdx];
+  s.events.push({
+    tic: 0,
+    _collapsed: true,
+    _spawnEnabled: false,
+    _spawnClass: '',
+    _spawnParams: [],
+    _spawnCount: 1,
+    _spawnInterval: 0,
+    _speedEnabled: false,
+    _speedValue: '',
+    _speedTransition: '',
+    _speedEasing: 'linear',
+    _broadcastEnabled: false,
+    _broadcast: '',
+    _disabled: false
+  });
+  renderDetail(selectedIdx);
+  renderSidebar();
+  setStatus('Added new event');
+}
+
+function pasteEvent() {
+  if (selectedIdx < 0 || selectedIdx >= eventSets.length || !copiedEvent) return;
+  const s = eventSets[selectedIdx];
+  const copy = JSON.parse(JSON.stringify(copiedEvent));
+  denormalizeEvent(copy);
+  s.events.push(copy);
+  renderDetail(selectedIdx);
+  renderSidebar();
+  setStatus('Pasted event');
+}
+
+function setAllCards(collapsed) {
+  if (selectedIdx < 0) return;
+  const s = eventSets[selectedIdx];
+  document.querySelectorAll('.event-card').forEach(c => {
+    const idx = parseInt(c.dataset.evIdx);
+    c.classList.toggle('collapsed', collapsed);
+    if (s.events[idx]) s.events[idx]._collapsed = collapsed;
+  });
+}
+
+function removeEvent(evIdx) {
+  if (selectedIdx < 0) return;
+  const s = eventSets[selectedIdx];
+  s.events.splice(evIdx, 1);
+  renderDetail(selectedIdx);
+  renderSidebar();
+  setStatus('Removed event');
+}
+
+function duplicateEvent(evIdx) {
+  if (selectedIdx < 0) return;
+  const s = eventSets[selectedIdx];
+  const copy = JSON.parse(JSON.stringify(s.events[evIdx]));
+  // Space the duplicate after the source by the spawn interval if it's
+  // a spawn event, otherwise by a small default offset. The user can
+  // adjust the tic after.
+  const isSpawn = copy.spawn;
+  const offset = isSpawn ? (copy.spawnInterval || 30) : 30;
+  copy.tic = (s.events[evIdx].tic || 0) + offset;
+  s.events.splice(evIdx + 1, 0, copy);
+  renderDetail(selectedIdx);
+  renderSidebar();
+  setStatus('Duplicated event #' + (evIdx + 1));
+}
+
+function moveEvent(evIdx, delta) {
+  if (selectedIdx < 0) return;
+  const s = eventSets[selectedIdx];
+  const target = evIdx + delta;
+  if (target < 0 || target >= s.events.length) return;
+  const tmp = s.events[evIdx];
+  s.events[evIdx] = s.events[target];
+  s.events[target] = tmp;
+  renderDetail(selectedIdx);
+  renderSidebar();
+}
+
+const TILEMAP_DIR = '/assets/backgrounds/';
+
+function resolveTilemapPath(p) {
+  if (!p || p.startsWith('/')) return p;
+  return TILEMAP_DIR + p;
+}
+
+let tilemapChangeTimer = null;
+
+function loadSinglePreview(s) {
+  loadPreviewFor(s).then(() => renderSidebar());
+}
+
+function onSetMetaChange() {
+  if (selectedIdx < 0) return;
+  const s = eventSets[selectedIdx];
+  s.label = setLabel.value;
+  const prevTilemap = s.tilemap;
+  s.tilemap = resolveTilemapPath(setTilemap.value);
+  if (s.tilemap !== prevTilemap) {
+    clearTimeout(tilemapChangeTimer);
+    tilemapChangeTimer = setTimeout(() => loadSinglePreview(s), 300);
+  }
+  const role = setWaveRole.value;
+  if (role === 'none') {
+    s.wave = null;
+  } else {
+    s.wave = {
+      role,
+      startBonus: parseInt(setWaveStartBonus.value) || 0,
+      decay: parseFloat(setWaveDecay.value) || 0,
+    };
+  }
+  waveHint.textContent = _waveHintFor(s, selectedIdx);
+  document.querySelectorAll('.wave-start-fields').forEach(el => {
+    el.style.display = (role === 'start' || role === 'start+end') ? '' : 'none';
+  });
+  s.advance = {
+    clear: advClear.checked,
+  };
+  renderSidebarDebounced();
+}
+
+// Returns a string describing the current set's wave role for the hint
+// badge. The role itself is usually enough; the hint adds context like
+// whether the wave is "the first set" (which sets startBonus) or "the last
+// in the wave" (which will award the bonus).
+function _waveHintFor(s, idx) {
+  if (!s.wave) return '';
+  const role = s.wave.role;
+  if (role === 'start') return 'establishes bonus + decay';
+  if (role === 'end') return 'awards bonus';
+  if (role === 'start+end') return 'awards old + establishes new';
+  if (role === 'in') {
+    // Is this the last 'in' before an end/start+end/waveless? (Approximation.)
+    const next = eventSets[idx + 1];
+    if (!next || !next.wave || next.wave.role === 'end' || next.wave.role === 'start' || next.wave.role === 'start+end') {
+      return 'last in wave (bonus will be awarded soon)';
+    }
+    return 'wave continues';
+  }
+  return '';
+}
+
+// ---- Helpers ----
+let sidebarRedrawTimer = null;
+function renderSidebarDebounced() {
+  clearTimeout(sidebarRedrawTimer);
+  sidebarRedrawTimer = setTimeout(renderSidebar, 200);
+}
+
+function setStatus(msg) {
+  statusEl.textContent = msg;
+}
+
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}

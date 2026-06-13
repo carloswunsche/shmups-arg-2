@@ -1,0 +1,41 @@
+{ "frames": [
+   {
+    "filename": "enemy-bullet1.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 4, "h": 4 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 4, "h": 4 },
+    "sourceSize": { "w": 4, "h": 4 },
+    "duration": 100
+   },
+   {
+    "filename": "enemy-bullet1.aseprite",
+    "frame": { "x": 4, "y": 0, "w": 4, "h": 4 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 4, "h": 4 },
+    "sourceSize": { "w": 4, "h": 4 },
+    "duration": 16
+   },
+   {
+    "filename": "enemy-bullet1.aseprite",
+    "frame": { "x": 8, "y": 0, "w": 4, "h": 4 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 4, "h": 4 },
+    "sourceSize": { "w": 4, "h": 4 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.x-dev",
+  "image": "enemy-bullet1.png",
+  "format": "RGBA8888",
+  "size": { "w": 12, "h": 4 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "default", "from": 0, "to": 2, "direction": "forward", "color": "#000000ff" }
+  ]
+ }
+}

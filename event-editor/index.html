@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stage Event Editor</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Stage Event Editor</h1>
+      <div class="toolbar">
+        <span id="fileLabel"></span>
+        <button id="btnLoad" title="Open events JSON file">Open</button>
+        <button id="btnSave" title="Save as JSON">Save</button>
+        <button id="btnBackup" title="Snapshot current state to local backup">Backup</button>
+        <button id="btnRestore" title="Restore from local backup">Restore</button>
+      </div>
+    </header>
+
+    <main>
+      <aside id="sidebar">
+        <div class="sidebar-header">
+          <h2>Blocks</h2>
+          <button id="btnAddBlock" title="Add new block">+</button>
+        </div>
+        <div id="blockList"></div>
+      </aside>
+
+      <section id="detail">
+        <div id="placeholder">
+          <p>Open an events JSON file to begin editing.</p>
+          <p class="sub">Drag &amp; drop a <code>.json</code> file anywhere on this page.</p>
+        </div>
+
+        <div id="detailContent" class="hidden">
+          <div id="blockMeta">
+            <div class="field-row">
+              <label>Kind</label>
+              <select id="blockKind">
+                <option value="wave">wave</option>
+                <option value="waveless">waveless</option>
+              </select>
+              <label class="inline-label">Start bonus</label>
+              <input type="number" id="blockStartBonus" value="0" min="0">
+              <label class="inline-label">Decay (per tic)</label>
+              <input type="number" id="blockDecay" value="0" min="0" step="0.1">
+              <label class="inline-label wave-only">Skip speed ×</label>
+              <input type="number" id="blockSkipSpeedMul" value="2" min="0" step="0.5" class="wave-only">
+              <label class="inline-label wave-only">Skip trans</label>
+              <input type="number" id="blockSkipTrans" value="30" min="0" step="1" class="wave-only">
+              <label class="inline-label wave-only">Ease</label>
+              <select id="blockSkipEasing" class="wave-only">
+                <option value="linear">linear</option>
+                <option value="ease-in">ease-in</option>
+                <option value="ease-out">ease-out</option>
+                <option value="ease-in-out">ease-in-out</option>
+              </select>
+              <span class="hint" id="blockHint"></span>
+            </div>
+
+            <h3>Background Portions</h3>
+            <div id="bgPortionList"></div>
+            <button id="btnAddPortion">+ Add Portion</button>
+          </div>
+
+          <div id="eventSetsContainer">
+            <div class="section-header">
+              <h3>Event Sets</h3>
+              <div class="event-controls">
+                <button id="btnAddEventSet">+ Add Event Set</button>
+              </div>
+            </div>
+            <div id="eventSetList"></div>
+          </div>
+
+          <div id="setDetail">
+            <div class="section-header">
+              <h3>Selected Event Set</h3>
+              <span id="setDetailHint" class="hint"></span>
+              <div class="event-controls">
+                <button id="btnExpandAll">Expand all</button>
+                <button id="btnCollapseAll">Collapse all</button>
+                <button id="btnAddEvent">+ Add Event</button>
+                <button id="btnPasteEvent" disabled>Paste as new event</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Quota</label>
+              <input type="number" id="setQuota" min="0" value="0">
+              <span class="hint">enemies remaining to clear this set</span>
+            </div>
+
+            <div id="timelineContainer">
+              <h3>Timeline</h3>
+              <div id="timeline">
+                <div id="timelineBar"></div>
+                <div id="timelineMarkers"></div>
+                <div id="timelineLabels"></div>
+              </div>
+            </div>
+
+            <div id="eventsContainer">
+              <div id="eventsList"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span id="status">Ready</span>
+      <div class="start-at">
+        <label>Start at block</label>
+        <input type="number" id="testFromIdx" value="0" min="0">
+        <button type="button" id="btnStartAt0">Block #0</button>
+        <button type="button" id="btnStartAtSelected">This block</button>
+      </div>
+    </footer>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json" style="display:none">
+
+  <datalist id="entityClasses"></datalist>
+  <datalist id="tilemapFiles"></datalist>
+
+  <div id="spriteModal" class="sprite-modal hidden">
+    <img id="spriteModalImg" src="" alt="">
+  </div>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>
