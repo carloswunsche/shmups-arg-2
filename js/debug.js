@@ -91,8 +91,9 @@ const Debug = {
     const baseY = HUD.panelPadY * s;
 
     const rows = [
-      [`Event Set: ${d.setIndex}${d.label ? ' - ' + d.label : ''}`, `RemainingLoops: ${d.appearances}`],
+      [`Block: ${d.blockIdx} / Set: ${d.setIndex}${d.label ? ' - ' + d.label : ''}`, `Appear: ${d.appearances}`],
       [`BgSpeed: ${d.bgSpeed.toFixed(2)}`, d.quota ? `Quota: ${d.quota}` : ''],
+      [`Portion: ${d.portionIdx} / Buf: ${d.bufferRows}`, ''],
     ];
 
     const panelH = (1 + rows.length) * lh + HUD.panelPadY * s;
@@ -129,8 +130,8 @@ const Debug = {
     const lh = HUD.lineHeight * s;
     const col1 = canvasWidth - HUD.col1Offset * s;
     const col2 = canvasWidth - HUD.col2Offset * s;
-    // Position below the info panel (3 lines: tic + 2 info rows)
-    const y = HUD.panelPadY * s + 3 * lh;
+    // Position below the info panel (4 lines: tic + 3 info rows)
+    const y = HUD.panelPadY * s + 4 * lh;
     ctx.fillStyle = '#f44';
     ctx.fillText('POOL:', col1, y);
     ctx.fillText(this.poolErrors[this.poolErrors.length - 1], col2, y);

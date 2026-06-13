@@ -16,53 +16,42 @@ class GameplayRenderer {
     const ctx = this.viewport.ctx;
     ctx.clearRect(0, 0, this.viewport.canvas.width, this.viewport.canvas.height);
 
-    if (background) this.renderBackground(ctx, background);
+    if (background) this.renderBackground(ctx, background.getRenderData());
     if (entities) this.renderEntities(entities, graphics);
     if (this.showHitboxes && entities) this.renderHitboxes(entities);
     if (hud && hudRenderer) hudRenderer.render(ctx, hud);
     if (debug) Debug.render(ctx, debug, this.viewport.canvas.width, this.scale);
   }
 
-  renderBackground(ctx, bg) {
-    return;  // Developer: early return for debug
-    const layers = bg.tilemap.layers && bg.tilemap.layers.length
-      ? bg.tilemap.layers
-      : [{ tiles: bg.tilemap.tiles, width: bg.tilemap.width, height: bg.tilemap.height }];
-    for (const layer of layers) {
-      this._renderLayer(ctx, bg, layer);
-    }
-  }
-
-  _renderLayer(ctx, bg, layer) {
+  // Dumb tile drawing. `data` comes straight from Background.getRenderData():
+  //   { rows, scrollY, tileW, tileH, mapWidth, viewportH, tilesetImage, layerNames }
+  // rows are bottom-first: row.screenRow 0 is the BOTTOM-most visible row.
+  // This method knows nothing about scrolling logic, portions or wrapping —
+  // it only places the rows it was handed and skips anything off-screen.
+  renderBackground(ctx, data) {
+    if (!data || !data.tilesetImage || data.rows.length === 0) return;
     const s = this.scale;
-    const tw = bg.tileW * s;
-    const th = bg.tileH * s;
-    const subPixel = bg.scrollY % bg.tileH;
-    const startRow = Math.floor(bg.scrollY / bg.tileH);
-    const rowsVisible = Math.ceil(this.height / bg.tileH) + 1;
-    const tilesetCols = Math.floor(bg.tilesetImage.width / bg.tileW);
-    const tiles = layer.tiles;
-    const mapH = bg.tilemap.height;
-    const wrapStart  = bg.wrapStart;
-    const wrapEnd    = bg.wrapEnd;
-    const wrapHeight = wrapEnd - wrapStart;
+    const tw = data.tileW * s;
+    const th = data.tileH * s;
+    const tilesetCols = Math.floor(data.tilesetImage.width / data.tileW);
+    const viewportPx = data.viewportH * s;
+    const subY = Math.round(data.scrollY * s);
 
-    for (let r = 0; r < rowsVisible; r++) {
-      let row = startRow + r - 1;
-      if (wrapHeight > 0) {
-        row = wrapStart + ((row - wrapStart) % wrapHeight + wrapHeight) % wrapHeight;
-      }
-      if (row < 0 || row >= mapH) continue;
-      const tileRow = tiles[row];
-      if (!tileRow) continue;
-      for (let col = 0; col < layer.width; col++) {
-        const id = tileRow[col];
-        if (!id || id <= 0) continue;
-        const sx = ((id - 1) % tilesetCols) * bg.tileW;
-        const sy = Math.floor((id - 1) / tilesetCols) * bg.tileH;
-        const dx = col * tw;
-        const dy = (rowsVisible - 1 - r) * th + Math.round(subPixel * s) - th;
-        ctx.drawImage(bg.tilesetImage, sx, sy, bg.tileW, bg.tileH, dx, dy, tw, th);
+    for (const name of data.layerNames) {
+      for (const row of data.rows) {
+        const tileRow = row.layers[name];
+        if (!tileRow) continue;
+        // Bottom-most visible row sits flush against the viewport bottom,
+        // shifted down by the sub-pixel scroll offset.
+        const dy = viewportPx - (row.screenRow + 1) * th + subY;
+        if (dy >= viewportPx || dy + th <= 0) continue; // fully off-screen
+        for (let col = 0; col < data.mapWidth; col++) {
+          const id = tileRow[col];
+          if (!id || id <= 0) continue;
+          const sx = ((id - 1) % tilesetCols) * data.tileW;
+          const sy = Math.floor((id - 1) / tilesetCols) * data.tileH;
+          ctx.drawImage(data.tilesetImage, sx, sy, data.tileW, data.tileH, col * tw, dy, tw, th);
+        }
       }
     }
   }

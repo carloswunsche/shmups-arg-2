@@ -1,13 +1,17 @@
 // AssetManager loads all game assets in one pass:
 //   - Entity images (with shadow/flash tint variants pre-baked)
-//   - Stages: events JSON + composed tilemap (per-event-set tilemaps or single)
+//   - Stages: events JSON + per-block background portions
 //
-// Tilemap coordinate convention:
-//   The renderer expects `tiles[row][col]` where row 0 is the BOTTOM of the
-//   world (highest scrollY) and row N-1 is the TOP. Tiled exports row 0 at
-//   the top, so each layer's data array is vertically flipped during load.
-//   For event-tilemap stages, individual bgPortions are concatenated in the
-//   order they appear in the events JSON; each bgPortion is itself flipped.
+// Background coordinate convention:
+//   Rows are stored BOTTOM-first: row index 0 is the bottom-most row of a
+//   portion (the row that scrolls off-screen last as the world moves down),
+//   the highest index is the top-most row (enters the viewport first). Tiled
+//   exports row 0 at the top, so each portion's layer data is vertically
+//   flipped on load.
+//
+//   Portions are kept GROUPED BY BLOCK (not flattened into one composite).
+//   The Background owns a sliding buffer that pulls rows from these portions
+//   on demand; the renderer only draws the rows currently visible.
 //
 // Sprite animation:
 //   Each entity may have an Aseprite JSON alongside the PNG. We parse it
@@ -79,33 +83,26 @@ class AssetManager {
     await Promise.all((manifest.stages || []).map(stage => this._loadStage(stage, manifestUrl)));
   }
 
-  // A stage has either `events` (block-based, drives tilemap composition)
-  // or `tilemap` (single tilemap, no events). `events` takes precedence
-  // if both are present. Paths inside the stage entry are resolved
-  // relative to the manifest URL.
+  // A stage carries `events` (an array of blocks). Each block may carry
+  // `bgPortions`, which we load as per-block, Y-flipped row data grouped
+  // by block (no flattening). The Background consumes this grouped shape.
   async _loadStage(stage, manifestUrl) {
     const entry = { id: stage.id };
     this.stages[stage.id] = entry;
 
-    if (stage.events) {
-      const eventsUrl = this._resolveAssetUrl(stage.events, manifestUrl);
-      const data = await this._fetchJson(eventsUrl);
-      const blocks = Array.isArray(data) ? data : data.events;
-      if (!Array.isArray(blocks)) {
-        throw new Error(`[assets] events JSON has invalid format: ${eventsUrl}`);
-      }
-      entry.events = blocks;
-      entry.testFromIdx = Array.isArray(data) ? undefined : data._testFromIdx;
+    if (!stage.events) return;
 
-      if (this._stageHasBgPortions(blocks)) {
-        const { tilemap, image } = await this._loadBlockTilemap(blocks, eventsUrl);
-        entry.tilemap = tilemap;
-        entry.tilemapImage = image;
-      }
-    } else if (stage.tilemap) {
-      const { tilemap, image } = await this._loadTilemap(stage.tilemap);
-      entry.tilemap = tilemap;
-      entry.tilemapImage = image;
+    const eventsUrl = this._resolveAssetUrl(stage.events, manifestUrl);
+    const data = await this._fetchJson(eventsUrl);
+    const blocks = Array.isArray(data) ? data : data.events;
+    if (!Array.isArray(blocks)) {
+      throw new Error(`[assets] events JSON has invalid format: ${eventsUrl}`);
+    }
+    entry.events = blocks;
+    entry.testFromIdx = Array.isArray(data) ? undefined : data._testFromIdx;
+
+    if (this._stageHasBgPortions(blocks)) {
+      entry.background = await this._loadBackground(blocks, eventsUrl);
     }
   }
 
@@ -116,152 +113,91 @@ class AssetManager {
     return false;
   }
 
-  async _loadTilemap(url) {
-    const tilemap = await this._fetchJson(url);
-    const rawTilesetPath = tilemap.tileset || tilemap.tilesets?.[0]?.image || '';
-    const tilesetPath = this._resolveAssetUrl(rawTilesetPath, url);
-    const image = await this._loadImage(tilesetPath);
-    return {
-      tilemap: this._normalizeTilemap(tilemap, tilesetPath),
-      image,
-    };
-  }
-
-  // Concatenate the bgPortions from all blocks into a single composite
-  // tilemap. Each block contributes its bgPortions in order. The
-  // resulting bgPortion metadata carries appearances + speed for the
-  // engine to consume.
-  async _loadBlockTilemap(blocks, eventsUrl) {
-    const entries = [];
-    for (const block of blocks) {
-      for (const bp of (block.bgPortions || [])) {
-        entries.push({ block, bp });
-      }
+  // Load every block's bgPortions as raw, Y-flipped, per-layer rows grouped
+  // by block. Returns:
+  //   {
+  //     tileW, tileH, mapWidth, tilesetPath, tilesetImage,
+  //     layerNames: [...],            // union of all layer names, draw order
+  //     blocks: [                     // one entry per events block (in order)
+  //       { portions: [ Portion, ... ] },
+  //       ...
+  //     ]
+  //   }
+  // Portion = {
+  //   height,                         // row count
+  //   appearances, speed, speedTransitionTime, speedEasing, label,
+  //   layers: { [layerName]: row[] }  // each row[] is bottom-first, length=mapWidth
+  // }
+  async _loadBackground(blocks, eventsUrl) {
+    // Flatten to (blockIdx, bp) pairs for parallel fetch, then regroup.
+    const jobs = [];
+    blocks.forEach((block, bi) => {
+      (block.bgPortions || []).forEach((bp, pi) => {
+        jobs.push({ bi, pi, bp });
+      });
+    });
+    if (jobs.length === 0) {
+      throw new Error(`[assets] _loadBackground called with no bgPortions: ${eventsUrl}`);
     }
-    if (entries.length === 0) {
-      throw new Error(`[assets] _loadBlockTilemap called with no bgPortions: ${eventsUrl}`);
-    }
 
-    const loaded = await Promise.all(entries.map(async ({ block, bp }) => {
-      const url = this._resolveAssetUrl(bp.file, eventsUrl);
+    const loaded = await Promise.all(jobs.map(async job => {
+      const url = this._resolveAssetUrl(job.bp.file, eventsUrl);
       const data = await this._fetchJson(url);
-      return { block, bp, data, url };
+      return { ...job, data, url };
     }));
 
-    const { layers, bgPortionMeta, totalRows, ref } = this._concatBgPortions(loaded, (item, startRow, H) => ({
-      label: item.bp.label || '',
-      startRow,
-      height: H,
-      appearances: item.bp.appearances !== undefined ? item.bp.appearances : DEFAULT_APPEARANCES,
-      speed: item.bp.speed || 0,
-      speedTransitionTime: item.bp.speedTransitionTime || 0,
-      speedEasing: item.bp.speedEasing || 'linear',
-    }));
-
-    const rawTilesetPath = ref.tileset || ref.tilesets?.[0]?.image || '';
-    const tilesetPath = this._resolveAssetUrl(rawTilesetPath, loaded[0].url);
-    const image = await this._loadImage(tilesetPath);
-
-    return {
-      tilemap: {
-        tileW: ref.tilewidth,
-        tileH: ref.tileheight,
-        width: ref.width,
-        height: totalRows,
-        layers,
-        tiles: layers[0] ? layers[0].tiles : [],
-        bgPortions: bgPortionMeta,
-        tileset: tilesetPath,
-      },
-      image,
-    };
-  }
-
-  // Concatenate multiple bgPortion tilemaps into one composite tilemap with
-  // aligned layers and per-bgPortion metadata. Each bgPortion's layer data
-  // is Y-flipped (Tiled's top-row-first → engine's bottom-row-first).
-  _concatBgPortions(bgPortions, buildMeta) {
-    const layerMap = {};
-    const bgPortionMeta = [];
-    let totalRows = 0;
+    const layerNameSet = [];
     let ref = null;
+    const blockGroups = blocks.map(() => ({ portions: [] }));
 
-    bgPortions.forEach(item => {
+    for (const item of loaded) {
       const data = item.data;
-      if (!ref) ref = data;
+      if (!ref) ref = { data, url: item.url };
       const W = data.width;
       const H = data.height;
-      const rowBase = totalRows;
 
-      // Pad existing layers with H null rows so all layers stay aligned
-      const prevLayerHeights = {};
-      Object.entries(layerMap).forEach(([name, l]) => {
-        prevLayerHeights[name] = l.tiles.length;
-        for (let i = 0; i < H; i++) l.tiles.push(null);
-      });
-
+      const layers = {};
       (data.layers || []).forEach(layer => {
         const name = layer.name || '';
-        if (!layerMap[name]) {
-          // New layer: pad with rowBase nulls then H placeholder rows
-          layerMap[name] = { name, tiles: [], width: W };
-          for (let i = 0; i < rowBase; i++) layerMap[name].tiles.push(null);
-          for (let i = 0; i < H; i++) layerMap[name].tiles.push(null);
-        }
-        const flat = layer.data;
-        const offset = prevLayerHeights[name] !== undefined ? prevLayerHeights[name] : rowBase;
+        if (!layerNameSet.includes(name)) layerNameSet.push(name);
+        const flat = layer.data || [];
+        const rows = [];
         for (let r = 0; r < H; r++) {
-          const row = [];
-          const j = H - 1 - r; // Y-flip
-          for (let c = 0; c < W; c++) row.push(flat[j * W + c] || 0);
-          layerMap[name].tiles[offset + r] = row;
+          const j = H - 1 - r; // Y-flip: Tiled top-first -> bottom-first
+          const row = new Array(W);
+          for (let c = 0; c < W; c++) row[c] = flat[j * W + c] || 0;
+          rows.push(row);
         }
+        layers[name] = rows;
       });
 
-      bgPortionMeta.push(buildMeta(item, totalRows, H));
-      totalRows += H;
-    });
-
-    return {
-      layers: Object.values(layerMap),
-      bgPortionMeta,
-      totalRows,
-      ref,
-    };
-  }
-
-  _normalizeTilemap(tilemap, resolvedTilesetPath) {
-    const W = tilemap.width || 0;
-    const H = tilemap.height || 0;
-    const layers = (tilemap.layers || []).map(layer => {
-      const data = layer.data || [];
-      const tiles = [];
-      // Y-flip
-      for (let r = H - 1; r >= 0; r--) {
-        const row = [];
-        for (let c = 0; c < W; c++) row.push(data[r * W + c] || 0);
-        tiles.push(row);
-      }
-      return { name: layer.name || '', tiles, width: W, height: H };
-    });
-
-    let bgPortions = [];
-    if (tilemap.properties) {
-      const prop = tilemap.properties.find(p => p.name === 'portions');
-      if (prop && prop.value) {
-        try { bgPortions = JSON.parse(prop.value); } catch (e) {}
-      }
+      blockGroups[item.bi].portions[item.pi] = {
+        height: H,
+        appearances: item.bp.appearances !== undefined ? item.bp.appearances : DEFAULT_APPEARANCES,
+        speed: item.bp.speed || 0,
+        speedTransitionTime: item.bp.speedTransitionTime || 0,
+        speedEasing: item.bp.speedEasing || 'linear',
+        label: item.bp.label || '',
+        layers,
+      };
     }
 
+    // Compact any holes (blocks without portions stay as empty arrays).
+    blockGroups.forEach(g => { g.portions = g.portions.filter(Boolean); });
+
+    const refData = ref.data;
+    const rawTilesetPath = refData.tileset || refData.tilesets?.[0]?.image || '';
+    const tilesetPath = this._resolveAssetUrl(rawTilesetPath, ref.url);
+    const tilesetImage = await this._loadImage(tilesetPath);
+
     return {
-      tileW: tilemap.tilewidth,
-      tileH: tilemap.tileheight,
-      width: W,
-      height: H,
-      layers,
-      tiles: layers[0] ? layers[0].tiles : [],
-      bgPortions,
-      tileset: resolvedTilesetPath,
+      tileW: refData.tilewidth,
+      tileH: refData.tileheight,
+      mapWidth: refData.width,
+      tilesetPath,
+      tilesetImage,
+      layerNames: layerNameSet,
+      blocks: blockGroups,
     };
   }
 

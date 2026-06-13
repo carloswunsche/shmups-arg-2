@@ -37,11 +37,21 @@ class GameplayScene {
     this.tic = 0;
     this._processTic = 0;
     this._pendingSpawns = [];
-    // Block-level bgPortion cursor. We advance this when the bgPortion
-    // finishes scrolling (independent of event-set advance). The scene
-    // asks the background to scroll each bgPortion in order; the bg
-    // tracks its own loop count.
-    this._bgPortionIdx = 0;
+
+    // ── Testing switches ──────────────────────────────────────────────
+    // gatedBlockStart: when true (default), a new block's events only start
+    //   once the Background reports its first portion is on screen. When
+    //   false, blocks advance immediately on quota-clear (aggressive mode /
+    //   no-handshake testing).
+    // backgroundEnabled: when false, no Background is created and block
+    //   advancement always ignores the handshake (pure gameplay testing).
+    this.gatedBlockStart = true;
+    this.backgroundEnabled = true;
+
+    // True while we've cleared a block and are waiting for the Background's
+    // block-ready handshake before starting the next block's events.
+    this._awaitingBlockReady = false;
+    this._pendingBlockIdx = -1;
   }
 
   init() {
@@ -55,6 +65,7 @@ class GameplayScene {
 
     setupDeathEffects(this.events, this.entityManager, this.renderer.width, this.renderer.height);
     this.events.on('entity.killed', (entity) => this._onEntityKilled(entity));
+    this.events.on('entity.escaped', (entity) => this._onEntityEscaped(entity));
   }
 
   _registerEntities() {
@@ -72,20 +83,48 @@ class GameplayScene {
 
   _setupStage() {
     const stageDef = this.stageId ? this.assets.stages[this.stageId] : null;
-    if (!stageDef || !stageDef.tilemap) return;
+    if (!stageDef || !stageDef.events) return;
 
-    this.background = new Background(stageDef.tilemap, stageDef.tilemapImage);
     this.timeline.init(stageDef.events);
-
     const startBlock = stageDef.testFromIdx || 0;
-    this.timeline.change(startBlock, this.tic);
+
+    if (this.backgroundEnabled && stageDef.background) {
+      this.background = new Background(stageDef.background, {
+        viewportH: this.renderer.height,
+        blockReadyOnAppend: false,
+        onBlockReady: (blockIdx) => this._onBlockReady(blockIdx),
+      });
+    } else {
+      this.background = null;
+    }
+
+    // Start the first block immediately. The Background's start() will fire
+    // onBlockReady for the start block right away, but the timeline also
+    // needs to be positioned now so tic-0 events can fire even without a bg.
+    this._startBlock(startBlock);
+    if (this.background) this.background.start(startBlock);
+  }
+
+  // Position the timeline at a block and (re)start its wave. Called for the
+  // start block and whenever a block-ready handshake (or ungated advance)
+  // moves us forward.
+  _startBlock(blockIdx) {
+    this.timeline.change(blockIdx, this.tic);
     if (this.timeline.currentBlock?.kind === 'wave') {
       this.timeline.startWave(this.timeline.currentBlock, this.tic);
     }
-    this._bgPortionIdx = 0;
-    if (this.background) {
-      this.background.jumpToBgPortion(this._compositeBgPortionIndex(startBlock));
-    }
+    this._awaitingBlockReady = false;
+    this._pendingBlockIdx = -1;
+  }
+
+  // Background handshake: the requested block's first portion is on screen.
+  // The Background has already ended its skip and applied the new portion's
+  // speed before invoking this; we just start the block's events.
+  _onBlockReady(blockIdx) {
+    if (!this.gatedBlockStart) return;        // ungated: scene already advanced
+    if (!this._awaitingBlockReady) return;    // not waiting on anything
+    if (blockIdx !== this._pendingBlockIdx) return;
+    this._startBlock(blockIdx);
   }
 
   _setupCollisions() {
@@ -158,62 +197,72 @@ class GameplayScene {
   }
 
   _onEntityKilled(entity) {
-    // Decrement the current event set's quota (1 per enemy killed or
-    // escaped).
+    // A killed enemy counts against the quota and awards score.
     if (entity.renderLayer === 'enemies_air') {
       this.timeline.decrementQuota(1);
     }
     if (entity.fromWave) return; // wave kills are routed via the kill handler above
-    if (!entity.escaped) this.events.emit('score.add', { amount: entity.score || 0 });
+    this.events.emit('score.add', { amount: entity.score || 0 });
   }
 
-  // Move to the next block. Awards the wave's bonus if the current
-  // block is a wave. On a wave clear, the background is told to
-  // accelerated-skip through the remaining bgPortions of the current
-  // block until it reaches the next block's first portion.
-  _advanceToNextBlock() {
+  _onEntityEscaped(entity) {
+    // An escaped enemy still counts against the quota so the set can clear,
+    // but awards no score and triggers no death effects.
+    if (entity.renderLayer === 'enemies_air') {
+      this.timeline.decrementQuota(1);
+    }
+  }
+
+  // The current block has been cleared (its last event set quota hit 0).
+  // Award the wave bonus now, release the background's endless portion and
+  // kick off the accelerated skip. The NEXT block's events do not start
+  // here — they start when the Background reports the next block is on
+  // screen (gated), unless gating is disabled.
+  _onBlockCleared() {
     const clearedBlockIdx = this.timeline.currentBlockIdx;
-    const wasWave = this.timeline.currentBlock?.kind === 'wave';
+    const cleared = this.timeline.currentBlock || {};
+    const wasWave = cleared.kind === 'wave';
     if (wasWave) {
       const bonus = this.timeline.computeWaveBonus(this.tic);
       if (bonus > 0) this.events.emit('score.add', { amount: bonus });
     }
     this.timeline.endWave();
-    const nextIdx = clearedBlockIdx + 1;
-    if (nextIdx >= this.timeline.blockData.length) return false;
-    this.timeline.change(nextIdx, this.tic);
-    if (this.timeline.currentBlock?.kind === 'wave') {
-      this.timeline.startWave(this.timeline.currentBlock, this.tic);
-    }
-    this._bgPortionIdx = 0;
-    if (this.background) {
-      const nextCompositeIdx = this._compositeBgPortionIndex(nextIdx);
-      if (wasWave) {
-        const cleared = this.timeline.blockData[clearedBlockIdx] || {};
-        this._bgSkipTarget = nextCompositeIdx;
-        this.background.startAcceleratedSkip({
-          speedMul: cleared.skipSpeedMul ?? 2,
-          transition: cleared.skipTransitionTime ?? 30,
-          easing: cleared.skipEasing || 'ease-in-out',
-        });
-      } else {
-        this._bgSkipTarget = -1;
-        this.background.jumpToBgPortion(nextCompositeIdx);
-      }
-    }
-    return true;
-  }
 
-  // The asset manager concatenates all blocks' bgPortions into a single
-  // composite tilemap. The scene translates a block index into the
-  // composite bgPortion index by summing the bgPortions of all
-  // preceding blocks.
-  _compositeBgPortionIndex(blockIdx) {
-    let idx = 0;
-    for (let i = 0; i < blockIdx && i < this.timeline.blockData.length; i++) {
-      idx += (this.timeline.blockData[i].bgPortions || []).length;
+    const nextIdx = clearedBlockIdx + 1;
+    if (nextIdx >= this.timeline.blockData.length) {
+      // Last block cleared — let the endless portion run out but nothing
+      // more to start.
+      if (this.background) this.background.requestEndPortion(clearedBlockIdx);
+      this._awaitingBlockReady = false;
+      this._pendingBlockIdx = -1;
+      return;
     }
-    return idx;
+
+    // Ungated (or no background): start the next block right now. The
+    // background (if any) simply releases its endless portion and flows on
+    // at normal speed — no accelerated skip, since we aren't waiting.
+    if (!this.gatedBlockStart || !this.background) {
+      if (this.background) this.background.requestEndPortion(clearedBlockIdx);
+      this._startBlock(nextIdx);
+      return;
+    }
+
+    // Gated: release the endless portion, skip, and wait for the handshake.
+    // If the next block's handshake already fired (its portions were prefilled
+    // during the cleared block's finite portions), advance immediately.
+    if (this.background.isBlockReady(nextIdx)) {
+      this._startBlock(nextIdx);
+      this.background.finishAcceleratedSkip();
+      return;
+    }
+    this._awaitingBlockReady = true;
+    this._pendingBlockIdx = nextIdx;
+    this.background.requestEndPortion(clearedBlockIdx);
+    this.background.startAcceleratedSkip({
+      speedMul: cleared.skipSpeedMul ?? 2,
+      transition: cleared.skipTransitionTime ?? 30,
+      easing: cleared.skipEasing || 'ease-in-out',
+    });
   }
 
   update() {
@@ -248,22 +297,17 @@ class GameplayScene {
     const dead = entityManager.cleanup(this.events);
     if (dead.length > 0) entityManager.despawn(dead);
 
-    if (this.background) {
-      this.background.update();
-      // End the ON-CLEAR skip when the bg reaches the next block's
-      // first portion.
-      if (this._bgSkipTarget >= 0 && this.background.bgPortionIndex >= this._bgSkipTarget) {
-        this.background.finishAcceleratedSkip();
-        this._bgSkipTarget = -1;
-      }
-    }
+    if (this.background) this.background.update();
 
-    // Event-set advance: if quota hit zero, advance to the next event
-    // set in the current block. If the block has no more event sets,
-    // advance to the next block.
-    if (this.timeline.isEventSetClear() && this.timeline.currentEventSet) {
+    // Event-set / block advance. While waiting for a gated block-ready
+    // handshake, we hold: no event-set advance, no re-clearing. The player,
+    // bullets and particles keep simulating above; only the next block's
+    // event firing is gated.
+    if (!this._awaitingBlockReady
+        && this.timeline.isEventSetClear()
+        && this.timeline.currentEventSet) {
       if (!this.timeline.advanceEventSet(this.tic)) {
-        this._advanceToNextBlock();
+        this._onBlockCleared();
       }
     }
 
@@ -302,18 +346,18 @@ class GameplayScene {
   }
 
   render() {
+    const bg = this.background;
     const debug = Debug.enabled ? {
-      tic: this._processTic,
-      blockIdx: this.timeline.currentBlockIdx,
-      eventSetIdx: this.timeline.currentEventSetIdx,
-      bgPortionIndex: this.background ? this.background.bgPortionIndex : -1,
+      setIndex: this.timeline.currentEventSetIdx,
       label: this.timeline.currentBlock ? (this.timeline.currentBlock.kind || '') : '',
-      appearances: this.background ? this.background.passesCompleted : 0,
-      bgSpeed: this.background ? this.background.scrollSpeed : 0,
-      advanceOn: this.background ? this.background.isSkipping() : false,
-      wave: this.timeline.wave
-        ? `${this.timeline.computeWaveBonus(this._processTic)} (${this.timeline.wave.killScore} from kills)`
-        : '',
+      elapsedTic: this._processTic - (this.timeline.currentEventSetStartTic || 0),
+      appearances: bg ? bg.appearancesLeft : 0,
+      bgSpeed: bg ? bg.scrollSpeed : 0,
+      quota: this.timeline.currentEventSet ? this.timeline.currentEventSet.quota : 0,
+      advanceOn: this._awaitingBlockReady || (bg ? bg.isSkipping() : false),
+      blockIdx: this.timeline.currentBlockIdx,
+      portionIdx: bg ? bg.currentPortionIdx : -1,
+      bufferRows: bg ? bg.bufferRows : 0,
     } : null;
 
     this.renderer.render({

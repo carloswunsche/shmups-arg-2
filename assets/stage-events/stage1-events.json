@@ -7,7 +7,7 @@
         {
           "file": "../backgrounds/stage1-bgPortion1.json",
           "appearances": -1,
-          "speed": 2,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -15,14 +15,6 @@
         {
           "quota": 4,
           "events": [
-            {
-              "tic": 0,
-              "_disabled": true,
-              "speed": {
-                "value": 2,
-                "transitionTime": 0
-              }
-            },
             {
               "tic": 50,
               "_collapsed": false,
@@ -41,22 +33,7 @@
               "spawnInterval": 30
             }
           ]
-        }
-      ],
-      "startBonus": 10000,
-      "decay": 5
-    },
-    {
-      "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1,
-          "speed": 0,
-          "speedTransitionTime": 0
-        }
-      ],
-      "eventSets": [
+        },
         {
           "quota": 15,
           "events": [
@@ -86,20 +63,37 @@
             {
               "tic": 170,
               "broadcast": "shotSpread"
+            },
+            {
+              "tic": 180,
+              "_collapsed": false,
+              "speed": {
+                "value": 4,
+                "transitionTime": 100
+              }
             }
           ]
         }
       ],
-      "startBonus": 8000,
-      "decay": 5
+      "startBonus": 10000,
+      "decay": 5,
+      "skipSpeedMul": 1,
+      "skipTransitionTime": 0,
+      "skipEasing": "linear"
     },
     {
-      "kind": "wave",
+      "kind": "waveless",
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion2.json",
-          "appearances": -1,
-          "speed": 0,
+          "appearances": 1,
+          "speed": 1,
+          "speedTransitionTime": 0
+        },
+        {
+          "file": "../backgrounds/stage1-bgPortion3.json",
+          "appearances": 1,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -108,6 +102,14 @@
           "quota": 1,
           "events": [
             {
+              "tic": 0,
+              "_collapsed": false,
+              "speed": {
+                "value": 1,
+                "transitionTime": 100
+              }
+            },
+            {
               "tic": 20,
               "spawn": [
                 "Popcorn3"
@@ -115,17 +117,15 @@
             }
           ]
         }
-      ],
-      "startBonus": 5000,
-      "decay": 5
+      ]
     },
     {
       "kind": "wave",
       "bgPortions": [
         {
-          "file": "../backgrounds/stage1-bgPortion3.json",
+          "file": "../backgrounds/stage1-bgPortion4.json",
           "appearances": -1,
-          "speed": 0,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -145,161 +145,33 @@
         }
       ],
       "startBonus": 15000,
-      "decay": 10
+      "decay": 10,
+      "skipSpeedMul": 1,
+      "skipTransitionTime": 0,
+      "skipEasing": "linear"
     },
     {
-      "kind": "wave",
+      "kind": "waveless",
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion5.json",
+          "appearances": 1,
+          "speed": 1,
+          "speedTransitionTime": 0
+        },
+        {
+          "file": "../backgrounds/stage1-bgPortion1.json",
           "appearances": -1,
-          "speed": 0,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
       "eventSets": [
         {
-          "quota": 10,
-          "events": [
-            {
-              "tic": 0,
-              "spawn": [
-                "Popcorn2",
-                {
-                  "yCenter": 25,
-                  "speed": 0.9,
-                  "amplitude": 6,
-                  "phase": 90
-                }
-              ],
-              "spawnCount": 5,
-              "spawnInterval": 25
-            },
-            {
-              "tic": 0,
-              "spawn": [
-                "Popcorn2",
-                {
-                  "yCenter": 45,
-                  "speed": 0.9,
-                  "amplitude": 6,
-                  "mirror": true,
-                  "phase": 45
-                }
-              ],
-              "spawnCount": 5,
-              "spawnInterval": 25
-            },
-            {
-              "tic": 80,
-              "broadcast": "shotSpread"
-            }
-          ]
+          "quota": 0,
+          "events": []
         }
-      ],
-      "startBonus": 6000,
-      "decay": 5
-    },
-    {
-      "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion10.json",
-          "appearances": -1,
-          "speed": 1,
-          "speedTransitionTime": 50
-        }
-      ],
-      "eventSets": [
-        {
-          "quota": 3,
-          "events": [
-            {
-              "tic": 0,
-              "speed": {
-                "value": 1,
-                "transitionTime": 50
-              }
-            },
-            {
-              "tic": 50,
-              "spawn": [
-                "Brick1",
-                {
-                  "x": [
-                    60,
-                    80,
-                    100
-                  ]
-                }
-              ],
-              "spawnCount": 3
-            },
-            {
-              "tic": 80,
-              "spawn": [
-                "Popcorn1",
-                {
-                  "speed": 0.5,
-                  "nextShotEnable": true
-                }
-              ]
-            },
-            {
-              "tic": 150,
-              "spawn": [
-                "Brick1",
-                {
-                  "x": [
-                    100,
-                    120,
-                    140
-                  ]
-                }
-              ],
-              "spawnCount": 3
-            },
-            {
-              "tic": 180,
-              "spawn": [
-                "Popcorn1",
-                {
-                  "speed": 0.5,
-                  "x": 120,
-                  "nextShotEnable": true
-                }
-              ]
-            },
-            {
-              "tic": 250,
-              "spawn": [
-                "Brick1",
-                {
-                  "x": [
-                    20,
-                    40,
-                    60
-                  ]
-                }
-              ],
-              "spawnCount": 3
-            },
-            {
-              "tic": 270,
-              "spawn": [
-                "Popcorn1",
-                {
-                  "speed": 0.5,
-                  "x": 40,
-                  "nextShotEnable": true
-                }
-              ]
-            }
-          ]
-        }
-      ],
-      "startBonus": 20000,
-      "decay": 10
+      ]
     }
   ]
 }

@@ -123,6 +123,10 @@ class EntityManager {
         }
         if (e.escaped) {
           dead.push(e);
+          // Escapes count against the quota (so a set can still clear if the
+          // player lets enemies fly past) but award no score and trigger no
+          // death effects — distinct from entity.killed.
+          if (events) events.emit('entity.escaped', e);
           continue;
         }
         if (e.hp <= 0) {

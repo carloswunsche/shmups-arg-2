@@ -7,7 +7,7 @@
         {
           "file": "../backgrounds/stage1-bgPortion1.json",
           "appearances": -1,
-          "speed": 2,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -16,16 +16,7 @@
           "quota": 4,
           "events": [
             {
-              "tic": 0,
-              "_disabled": true,
-              "speed": {
-                "value": 2,
-                "transitionTime": 0
-              }
-            },
-            {
               "tic": 50,
-              "_collapsed": false,
               "spawn": [
                 "Popcorn1",
                 {
@@ -41,22 +32,7 @@
               "spawnInterval": 30
             }
           ]
-        }
-      ],
-      "startBonus": 10000,
-      "decay": 5
-    },
-    {
-      "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1,
-          "speed": 0,
-          "speedTransitionTime": 0
-        }
-      ],
-      "eventSets": [
+        },
         {
           "quota": 15,
           "events": [
@@ -90,16 +66,22 @@
           ]
         }
       ],
-      "startBonus": 8000,
+      "startBonus": 10000,
       "decay": 5
     },
     {
-      "kind": "wave",
+      "kind": "waveless",
       "bgPortions": [
         {
           "file": "../backgrounds/stage1-bgPortion2.json",
-          "appearances": -1,
-          "speed": 0,
+          "appearances": 1,
+          "speed": 1,
+          "speedTransitionTime": 0
+        },
+        {
+          "file": "../backgrounds/stage1-bgPortion3.json",
+          "appearances": 1,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -115,29 +97,15 @@
             }
           ]
         }
-      ],
-      "startBonus": 5000,
-      "decay": 5
-    },
-    {
-      "kind": "waveless",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion4.json",
-          "appearances": -1,
-          "speed": 0,
-          "speedTransitionTime": 0
-        }
-      ],
-      "eventSets": []
+      ]
     },
     {
       "kind": "wave",
       "bgPortions": [
         {
-          "file": "../backgrounds/stage1-bgPortion3.json",
+          "file": "../backgrounds/stage1-bgPortion4.json",
           "appearances": -1,
-          "speed": 0,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -165,7 +133,33 @@
         {
           "file": "../backgrounds/stage1-bgPortion5.json",
           "appearances": -1,
+          "speed": 1,
+          "speedTransitionTime": 0
+        }
+      ],
+      "eventSets": [],
+      "startBonus": 0,
+      "decay": 0
+    },
+    {
+      "kind": "wave",
+      "bgPortions": [
+        {
+          "file": "../backgrounds/stage1-bgPortion1.json",
+          "appearances": -1,
           "speed": 0,
+          "speedTransitionTime": 0
+        },
+        {
+          "file": "../backgrounds/stage1-bgPortion9.json",
+          "appearances": 1,
+          "speed": 1,
+          "speedTransitionTime": 0
+        },
+        {
+          "file": "../backgrounds/stage1-bgPortion10.json",
+          "appearances": -1,
+          "speed": 1,
           "speedTransitionTime": 0
         }
       ],
@@ -207,56 +201,10 @@
               "broadcast": "shotSpread"
             }
           ]
-        }
-      ],
-      "startBonus": 6000,
-      "decay": 5
-    },
-    {
-      "kind": "waveless",
-      "bgPortions": [
+        },
         {
-          "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1,
-          "speed": 0,
-          "speedTransitionTime": 0
-        }
-      ],
-      "eventSets": []
-    },
-    {
-      "kind": "waveless",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion9.json",
-          "appearances": -1,
-          "speed": 0,
-          "speedTransitionTime": 0
-        }
-      ],
-      "eventSets": []
-    },
-    {
-      "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion10.json",
-          "appearances": -1,
-          "speed": 1,
-          "speedTransitionTime": 50
-        }
-      ],
-      "eventSets": [
-        {
-          "quota": 3,
+          "quota": 1000,
           "events": [
-            {
-              "tic": 0,
-              "speed": {
-                "value": 1,
-                "transitionTime": 50
-              }
-            },
             {
               "tic": 50,
               "spawn": [
@@ -334,8 +282,8 @@
           ]
         }
       ],
-      "startBonus": 20000,
-      "decay": 10
+      "startBonus": 6000,
+      "decay": 5
     }
   ]
 }
