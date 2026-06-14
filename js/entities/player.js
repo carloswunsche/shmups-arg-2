@@ -1,6 +1,6 @@
 import Entity from './entity.js';
-import { Mover } from '../movers.js';
-import { Oscillator, hzToRadians } from '../oscillators.js';
+import { Mover } from '../game/movers.js';
+import { Oscillator, hzToRadians } from '../game/oscillators.js';
 
 // Bullet pattern relative to player position
 const SHOT_PATTERN = [

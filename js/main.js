@@ -1,12 +1,12 @@
-import InputManager from "./input-manager.js";
-import Viewport from "./viewport.js";
-import GameplayRenderer from "./gameplay-renderer.js";
-import GameLoop from "./game-loop.js";
-import AssetManager from "./asset-manager.js";
-import SceneManager from "./scene-manager.js";
+import InputManager from "./core/input-manager.js";
+import Viewport from "./core/viewport.js";
+import GameplayRenderer from "./render/gameplay-renderer.js";
+import GameLoop from "./core/game-loop.js";
+import AssetManager from "./core/asset-manager.js";
+import SceneManager from "./core/scene-manager.js";
 import MainMenuScene from "./scenes/main-menu-scene.js";
 import GameplayScene from "./scenes/gameplay-scene.js";
-import Debug from "./debug.js";
+import Debug from "./core/debug.js";
 
 const input = new InputManager();
 const viewport = new Viewport(160, 120);

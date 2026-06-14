@@ -1,4 +1,4 @@
-import Debug from "./debug.js";
+import Debug from "../core/debug.js";
 
 const SHADOW_LAYERS = new Set(['players', 'enemies_air']);
 

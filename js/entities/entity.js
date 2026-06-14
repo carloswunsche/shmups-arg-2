@@ -1,4 +1,4 @@
-import { getDeath } from '../deaths.js';
+import { getDeath } from '../game/deaths.js';
 
 class Entity {
   constructor() {

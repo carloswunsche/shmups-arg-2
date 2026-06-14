@@ -1,11 +1,11 @@
-import EntityManager from "../entity-manager.js";
-import BlockSequencer from "../block-sequencer.js";
-import EventBus from "../event-bus.js";
-import Background from "../background.js";
-import Debug from "../debug.js";
-import Hud from "../hud.js";
-import HudRenderer from "../hud-renderer.js";
-import GameState from "../game-state.js";
+import EntityManager from "../core/entity-manager.js";
+import BlockSequencer from "../game/block-sequencer.js";
+import EventBus from "../core/event-bus.js";
+import Background from "../game/background.js";
+import Debug from "../core/debug.js";
+import Hud from "../game/hud.js";
+import HudRenderer from "../render/hud-renderer.js";
+import GameState from "../game/game-state.js";
 import Player from "../entities/player.js";
 import PlayerBullet from "../entities/player-bullet.js";
 import Particle from "../entities/particle.js";
@@ -16,7 +16,7 @@ import Popcorn4 from "../entities/popcorn4.js";
 import Midboss1 from "../entities/midboss1.js";
 import Brick1 from "../entities/brick1.js";
 import EnemyBullet from "../entities/enemy-bullet.js";
-import { setupDeathEffects } from "../death-effects.js";
+import { setupDeathEffects } from "../game/death-effects.js";
 
 
 class GameplayScene {

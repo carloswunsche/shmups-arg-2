@@ -1,6 +1,6 @@
 import Enemy from './enemy.js';
-import { Mover } from '../movers.js';
-import { Oscillator, hzToRadians } from '../oscillators.js';
+import { Mover } from '../game/movers.js';
+import { Oscillator, hzToRadians } from '../game/oscillators.js';
 
 class Popcorn1 extends Enemy {
   constructor() {

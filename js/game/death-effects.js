@@ -1,4 +1,4 @@
-import Particle from "./entities/particle.js";
+import Particle from "../entities/particle.js";
 
 const DEFAULT_WIDTH_FALLBACK = 12;
 
