@@ -6,7 +6,7 @@ const EASING = {
 };
 const ease = (t, kind) => (EASING[kind] || EASING.linear)(t);
 
-const FILL_MARGIN_ROWS = 2;
+const REFILL_MARGIN_ROWS = 2;
 
 class Background {
   constructor(bgData, opts = {}) {
@@ -41,10 +41,10 @@ class Background {
     this._releasedPortions = new Set();
 
     // Portions with activateBlock that are waiting to scroll into view.
-    this._pendingReady = [];              // [{ activateBlock, worldRow }]
-    this._readyFiredFor = new Set();      // activateBlock values already announced
-    this._worldRowTop = 0;
-    this._worldRowBottom = 0;
+    this._pendingActivationSignals = [];      // [{ activateBlock, worldRow }]
+    this._signaledBlockIds = new Set();      // activateBlock values already announced
+    this._totalRowsAppended = 0;
+    this._totalRowsConsumed = 0;
   }
 
   start(portionIdx = 0) {
@@ -52,14 +52,14 @@ class Background {
     this.scrollY = 0;
     this.scrollSpeed = 0;
     this._speedDuration = 0;
-    this._worldRowBottom = 0;
-    this._worldRowTop = 0;
+    this._totalRowsConsumed = 0;
+    this._totalRowsAppended = 0;
     this._releasedPortions = new Set();
-    this._pendingReady = [];
-    this._readyFiredFor = new Set();
+    this._pendingActivationSignals = [];
+    this._signaledBlockIds = new Set();
     this._setCursor(portionIdx);
-    this._fill();
-    this._checkPendingReady();
+    this._refillBuffer();
+    this._checkPendingActivationSignals();
   }
 
   _setCursor(index) {
@@ -71,7 +71,7 @@ class Background {
     }
   }
 
-  _advanceCursor() {
+  _advancePortionCursor() {
     const c = this._cursor;
     const portion = this.portions[c.index];
     if (!portion) return false;
@@ -97,7 +97,7 @@ class Background {
     }
   }
 
-  _appendNextPortion() {
+  _appendNextPortionToBuffer() {
     const c = this._cursor;
     const portion = this.portions[c.index];
     if (!portion) return false;
@@ -105,7 +105,7 @@ class Background {
     // Apply portion's speed immediately
     this.setSpeed(portion.speed || 0, portion.speedTransitionTime || 0, portion.speedEasing || 'linear');
 
-    const appendStartWorldRow = this._worldRowTop;
+    const appendStartWorldRow = this._totalRowsAppended;
 
     for (let r = 0; r < portion.height; r++) {
       const layers = {};
@@ -115,61 +115,61 @@ class Background {
       }
       this.buffer.push({ layers, portionRef: portion });
     }
-    this._worldRowTop += portion.height;
+    this._totalRowsAppended += portion.height;
 
     // If this portion activates a block, queue it for when it scrolls into view
     if (portion.activateBlock !== undefined && portion.activateBlock >= 0
-        && !this._readyFiredFor.has(portion.activateBlock)) {
-      this._pendingReady.push({ activateBlock: portion.activateBlock, worldRow: appendStartWorldRow });
+        && !this._signaledBlockIds.has(portion.activateBlock)) {
+      this._pendingActivationSignals.push({ activateBlock: portion.activateBlock, worldRow: appendStartWorldRow });
     }
 
     // FUTURE (ground enemies): if this portion carries an `enemy_ground` layer
     // (authored in Tiled), read enemy markers here and queue them keyed by
-    // their world row, mirroring _pendingReady. As _shave advances
-    // _worldRowBottom, a _checkPendingGroundSpawns() pass would emit spawn
+    // their world row, mirroring _pendingActivationSignals. As _popScrolledRows advances
+    // _totalRowsConsumed, a _checkPendingGroundSpawns() pass would emit spawn
     // requests so ground enemies appear at the background's own pace,
     // independent of the air-wave timeline. Deliberately left as a hook.
 
-    this._advanceCursor();
+    this._advancePortionCursor();
     return true;
   }
 
-  _announceReady(activateBlock) {
-    if (this._readyFiredFor.has(activateBlock)) return;
-    this._readyFiredFor.add(activateBlock);
+  _fireActivateBlock(activateBlock) {
+    if (this._signaledBlockIds.has(activateBlock)) return;
+    this._signaledBlockIds.add(activateBlock);
     if (this.onBlockReady) this.onBlockReady(activateBlock);
   }
 
-  _checkPendingReady() {
-    if (this._pendingReady.length === 0) return;
-    const viewportTopWorldRow = this._worldRowBottom + this.viewportRows;
+  _checkPendingActivationSignals() {
+    if (this._pendingActivationSignals.length === 0) return;
+    const viewportBottomRow = this._totalRowsConsumed + this.viewportRows;
     let write = 0;
-    for (let read = 0; read < this._pendingReady.length; read++) {
-      const p = this._pendingReady[read];
-      if (viewportTopWorldRow >= p.worldRow) {
-        this._announceReady(p.activateBlock);
+    for (let read = 0; read < this._pendingActivationSignals.length; read++) {
+      const p = this._pendingActivationSignals[read];
+      if (viewportBottomRow >= p.worldRow) {
+        this._fireActivateBlock(p.activateBlock);
       } else {
-        if (read !== write) this._pendingReady[write] = p;
+        if (read !== write) this._pendingActivationSignals[write] = p;
         write++;
       }
     }
-    this._pendingReady.length = write;
+    this._pendingActivationSignals.length = write;
   }
 
-  _fill() {
-    const needTopWorldRow = this._worldRowBottom + this.viewportRows + FILL_MARGIN_ROWS;
+  _refillBuffer() {
+    const needTopWorldRow = this._totalRowsConsumed + this.viewportRows + REFILL_MARGIN_ROWS;
     let guard = 0;
-    while (this._worldRowTop < needTopWorldRow) {
-      if (!this._appendNextPortion()) break;
+    while (this._totalRowsAppended < needTopWorldRow) {
+      if (!this._appendNextPortionToBuffer()) break;
       if (++guard > 10000) break;
     }
   }
 
-  _shave() {
+  _popScrolledRows() {
     while (this.scrollY >= this.tileH && this.buffer.length > 0) {
       this.buffer.shift();
       this.scrollY -= this.tileH;
-      this._worldRowBottom++;
+      this._totalRowsConsumed++;
     }
   }
 
@@ -199,9 +199,9 @@ class Background {
     }
 
     this.scrollY += this.scrollSpeed;
-    this._shave();
-    this._fill();
-    this._checkPendingReady();
+    this._popScrolledRows();
+    this._refillBuffer();
+    this._checkPendingActivationSignals();
   }
 
   getRenderData() {
@@ -222,7 +222,7 @@ class Background {
     };
   }
 
-  get currentPortionIdx() { return this._cursor.index; }
+  get portionIdx() { return this._cursor.index; }
   get appearancesLeft() { return this._cursor.appearancesLeft; }
   get bufferRows() { return this.buffer.length; }
 }

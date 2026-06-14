@@ -16,7 +16,7 @@ class HudRenderer {
     const fontSize = 8 * s;
     const height = 16 * s;
 
-    ctx.fillStyle = hud.flashTimer > 0 ? '#fe0' : '#000';
+    ctx.fillStyle = hud.flashTimer > 0 ? '#fe0' : '#fff';
     drawText(ctx, `${hud.displayedScore}`, {
       x: 2 * s, y: 1 * s,
       width: (w - 8) * s, height,
@@ -25,15 +25,15 @@ class HudRenderer {
     });
 
     if (hud.waveTic !== null) {
-      ctx.fillStyle = '#000';
-      drawText(ctx, `${hud.waveTic}`, {
+      ctx.fillStyle = '#fff';
+      drawText(ctx, `time: ${hud.waveTic}`, {
         x: 0, y: 1 * s,
         width: w * s, height,
         fontSize, font,
         align: 'center', vAlign: 'top',
       });
       if (hud.waveBonus !== null) {
-        drawText(ctx, `${hud.waveBonus}`, {
+        drawText(ctx, `bonus: ${hud.waveBonus}`, {
           x: 0, y: 9 * s,
           width: w * s, height,
           fontSize, font,

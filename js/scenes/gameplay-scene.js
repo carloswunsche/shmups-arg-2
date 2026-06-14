@@ -1,5 +1,5 @@
 import EntityManager from "../entity-manager.js";
-import BlockRunner from "../timeline.js";
+import BlockSequencer from "../block-sequencer.js";
 import EventBus from "../event-bus.js";
 import Background from "../background.js";
 import Debug from "../debug.js";
@@ -29,15 +29,15 @@ class GameplayScene {
     this.events = new EventBus();
     this.entityManager = new EntityManager();
     this.entityManager.events = this.events;
-    this.timeline = new BlockRunner();
-    this.timeline.events = this.events;
+    this.blockSequencer = new BlockSequencer();
+    this.blockSequencer.events = this.events;
     this.gameState = new GameState(this.events);
     this.hud = new Hud(this.gameState, this.events);
     this.hudRenderer = new HudRenderer(this.renderer);
     this.tic = 0;
     this._processTic = 0;
     this._pendingSpawns = [];
-    this._pendingActivations = new Set();
+    this._deferredBlockStarts = new Set();
 
     this.backgroundEnabled = true;
   }
@@ -60,7 +60,7 @@ class GameplayScene {
     this.entityManager.register(Player, 1, 'players');
     this.entityManager.register(PlayerBullet, 26, 'player_bullets');
     this.entityManager.register(Particle, 500, 'particles');
-    this.entityManager.register(Popcorn1, 10, 'enemies_air');
+    this.entityManager.register(Popcorn1, 15, 'enemies_air');
     this.entityManager.register(Popcorn2, 15, 'enemies_air');
     this.entityManager.register(Popcorn3, 15, 'enemies_air');
     this.entityManager.register(Popcorn4, 15, 'enemies_air');
@@ -73,7 +73,7 @@ class GameplayScene {
     const stageDef = this.stageId ? this.assets.stages[this.stageId] : null;
     if (!stageDef || !stageDef.events) return;
 
-    this.timeline.init(stageDef.events);
+    this.blockSequencer.init(stageDef.events);
     const startBlock = stageDef.testFromIdx || 0;
 
     // Start the first block immediately so tic-0 events fire.
@@ -81,13 +81,13 @@ class GameplayScene {
     if (this.backgroundEnabled && stageDef.background) {
       this.background = new Background(stageDef.background, {
         viewportH: this.renderer.height,
-        onBlockReady: (activateBlock) => this._onBlockReady(activateBlock),
+        onBlockReady: (activateBlock) => this._onActivateBlockSignal(activateBlock),
       });
       // The background runs its own timeline. For a normal run it starts at
       // portion 0; when testing from a mid-stage block, start at the portion
       // that would have activated that block so the right scenery is shown
       // and we don't stall on an unreleased endless portion.
-      this.background.start(this._bgStartPortionFor(startBlock, stageDef.background));
+      this.background.start(this._findStartPortionForBlock(startBlock, stageDef.background));
     } else {
       this.background = null;
     }
@@ -95,20 +95,20 @@ class GameplayScene {
 
   // Find the portion index whose activateBlock targets `blockIdx`; fall back
   // to 0 (the natural stage start).
-  _bgStartPortionFor(blockIdx, bg) {
+  _findStartPortionForBlock(blockIdx, bg) {
     if (!blockIdx || !bg || !bg.portions) return 0;
     const i = bg.portions.findIndex(p => p.activateBlock === blockIdx);
     return i >= 0 ? i : 0;
   }
 
-  // Position the timeline at a block and (re)start its wave. A block is
+  // Position the sequencer at a block and (re)start its wave. A block is
   // "running" while it has a live event set; guard against starting the
   // one that is already running (defensive against duplicate activations).
   _startBlock(blockIdx) {
-    if (blockIdx === this.timeline.currentBlockIdx && this.timeline.currentEventSet) return;
-    this.timeline.change(blockIdx, this.tic);
-    if (this.timeline.currentBlock?.kind === 'wave') {
-      this.timeline.startWave(this.timeline.currentBlock, this.tic);
+    if (blockIdx === this.blockSequencer.blockIdx && this.blockSequencer.currentEventSet) return;
+    this.blockSequencer.switchToBlock(blockIdx, this.tic);
+    if (this.blockSequencer.currentBlock?.kind === 'wave') {
+      this.blockSequencer.startWave(this.blockSequencer.currentBlock, this.tic);
     }
   }
 
@@ -121,16 +121,16 @@ class GameplayScene {
   //   - If the scene hasn't reached this block yet (player still fighting an
   //     earlier block) -> remember it; _onBlockCleared starts it on arrival.
   //   - If the scene is already past it -> ignore (stale signal).
-  _onBlockReady(blockIdx) {
-    const blockDef = this.timeline.blockData[blockIdx];
+  _onActivateBlockSignal(blockIdx) {
+    const blockDef = this.blockSequencer.blockData[blockIdx];
     if (!blockDef || !blockDef.preventFromStart) return;
 
-    if (blockIdx === this.timeline.currentBlockIdx) {
+    if (blockIdx === this.blockSequencer.blockIdx) {
       this._startBlock(blockIdx);
-    } else if (blockIdx > this.timeline.currentBlockIdx) {
-      this._pendingActivations.add(blockIdx);
+    } else if (blockIdx > this.blockSequencer.blockIdx) {
+      this._deferredBlockStarts.add(blockIdx);
     }
-    // blockIdx < currentBlockIdx: stale, ignore.
+    // blockIdx < this.blockIdx: stale, ignore.
   }
 
   _setupCollisions() {
@@ -140,7 +140,7 @@ class GameplayScene {
         onCollision: (playerBullet, enemy) => {
           playerBullet.hp = 0;
           enemy.hp -= playerBullet.power;
-          if (enemy.fromWave) this.timeline.addWaveKillScore(playerBullet.hitScore || 0);
+          if (enemy.fromWave) this.blockSequencer.addWaveKillScore(playerBullet.hitScore || 0);
           else                this.events.emit('score.add', { amount: playerBullet.hitScore || 0 });
           this.events.emit('enemy.damaged', { enemy });
         }
@@ -172,7 +172,7 @@ class GameplayScene {
         const interval = eventData.spawnInterval || 0;
         const vw = this.renderer.width;
         const vh = this.renderer.height;
-        const fromWave = this.timeline.currentBlock?.kind === 'wave';
+        const fromWave = this.blockSequencer.currentBlock?.kind === 'wave';
 
         const makeParams = (i) => {
           const out = { ...(rawParams || {}), _spawnIndex: i, _spawnCount: count, fromWave };
@@ -205,9 +205,9 @@ class GameplayScene {
   _onEntityKilled(entity) {
     // A killed enemy counts against the quota and awards score.
     if (entity.renderLayer === 'enemies_air') {
-      this.timeline.decrementQuota(1);
+      this.blockSequencer.decrementQuota(1);
     }
-    if (entity.fromWave) return; // wave kills are routed via the kill handler above
+    // if (entity.fromWave) return; // wave kills are routed via the kill handler above
     this.events.emit('score.add', { amount: entity.score || 0 });
   }
 
@@ -215,7 +215,7 @@ class GameplayScene {
     // An escaped enemy still counts against the quota so the set can clear,
     // but awards no score and triggers no death effects.
     if (entity.renderLayer === 'enemies_air') {
-      this.timeline.decrementQuota(1);
+      this.blockSequencer.decrementQuota(1);
     }
   }
 
@@ -226,42 +226,42 @@ class GameplayScene {
   //   3. Advance the scene position to the next block. Auto-start it unless
   //      it is `preventFromStart`, in which case it waits for a background
   //      portion's activateBlock (which may already have arrived and been
-  //      parked in _pendingActivations).
+  //      parked in _deferredBlockStarts).
   _onBlockCleared() {
-    const clearedIdx = this.timeline.currentBlockIdx;
-    const cleared = this.timeline.currentBlock || {};
+    const clearedIdx = this.blockSequencer.blockIdx;
+    const cleared = this.blockSequencer.currentBlock || {};
 
     if (cleared.kind === 'wave') {
-      const bonus = this.timeline.computeWaveBonus(this.tic);
+      const bonus = this.blockSequencer.computeWaveBonus(this.tic);
       if (bonus > 0) this.events.emit('score.add', { amount: bonus });
     }
-    this.timeline.endWave();
+    this.blockSequencer.endWave();
 
     if (this.background && cleared.releasesPortionOf !== undefined && cleared.releasesPortionOf >= 0) {
       this.background.releasePortion(cleared.releasesPortionOf);
     }
 
     const nextIdx = clearedIdx + 1;
-    if (nextIdx >= this.timeline.blockData.length) {
+    if (nextIdx >= this.blockSequencer.blockData.length) {
       // Stage's last block cleared. Go idle; the background keeps scrolling.
-      this.timeline.currentEventSet = null;
-      this.timeline.currentEventSetIdx = -1;
+      this.blockSequencer.currentEventSet = null;
+      this.blockSequencer.currentEventSetIdx = -1;
       return;
     }
 
-    const nextDef = this.timeline.blockData[nextIdx];
+    const nextDef = this.blockSequencer.blockData[nextIdx];
 
     // Move the scene position to the next block but stay idle (no live event
     // set) so the update loop won't try to advance again until it actually
-    // starts. This lets _onBlockReady recognise "we are sitting at nextIdx".
-    this.timeline.currentBlockIdx = nextIdx;
-    this.timeline.currentBlock = nextDef;
-    this.timeline.currentEventSet = null;
-    this.timeline.currentEventSetIdx = -1;
+    // starts. This lets _onActivateBlockSignal recognise "we are sitting at nextIdx".
+    this.blockSequencer.blockIdx = nextIdx;
+    this.blockSequencer.currentBlock = nextDef;
+    this.blockSequencer.currentEventSet = null;
+    this.blockSequencer.currentEventSetIdx = -1;
 
     if (!nextDef.preventFromStart) {
       this._startBlock(nextIdx);
-    } else if (this._pendingActivations.delete(nextIdx)) {
+    } else if (this._deferredBlockStarts.delete(nextIdx)) {
       // A portion already announced this block while we were busy — start now.
       this._startBlock(nextIdx);
     }
@@ -274,7 +274,7 @@ class GameplayScene {
 
     input.commitState();
 
-    this.timeline.fire(this.tic, this._fireCallbacks);
+    this.blockSequencer.fire(this.tic, this._fireCallbacks);
     this.hud.update();
 
     // Drain pending spawns in place
@@ -303,17 +303,17 @@ class GameplayScene {
     if (this.background) this.background.update();
 
     // Event-set / block advance.
-    if (this.timeline.isEventSetClear()
-        && this.timeline.currentEventSet) {
-      if (!this.timeline.advanceEventSet(this.tic)) {
+    if (this.blockSequencer.isEventSetClear()
+        && this.blockSequencer.currentEventSet) {
+      if (!this.blockSequencer.advanceEventSet(this.tic)) {
         this._onBlockCleared();
       }
     }
 
-    if (this.timeline.wave) {
+    if (this.blockSequencer.wave) {
       this.events.emit('wave.tic', {
-        tic: this.tic - (this.timeline.wave.startTic || 0),
-        bonus: this.timeline.computeWaveBonus(this.tic),
+        tic: this.tic - (this.blockSequencer.wave.startTic || 0),
+        bonus: this.blockSequencer.computeWaveBonus(this.tic),
       });
     }
 
@@ -347,14 +347,14 @@ class GameplayScene {
   render() {
     const bg = this.background;
     const debug = Debug.enabled ? {
-      setIndex: this.timeline.currentEventSetIdx,
-      label: this.timeline.currentBlock ? (this.timeline.currentBlock.kind || '') : '',
-      elapsedTic: this._processTic - (this.timeline.currentEventSetStartTic || 0),
+      setIndex: this.blockSequencer.currentEventSetIdx,
+      label: this.blockSequencer.currentBlock ? (this.blockSequencer.currentBlock.kind || '') : '',
+      elapsedTic: this._processTic - (this.blockSequencer.currentEventSetStartTic || 0),
       appearances: bg ? bg.appearancesLeft : 0,
       bgSpeed: bg ? bg.scrollSpeed : 0,
-      quota: this.timeline.currentEventSet ? this.timeline.currentEventSet.quota : 0,
-      blockIdx: this.timeline.currentBlockIdx,
-      portionIdx: bg ? bg.currentPortionIdx : -1,
+      quota: this.blockSequencer.currentEventSet ? this.blockSequencer.currentEventSet.quota : 0,
+      blockIdx: this.blockSequencer.blockIdx,
+      portionIdx: bg ? bg.portionIdx : -1,
       bufferRows: bg ? bg.bufferRows : 0,
     } : null;
 
@@ -371,7 +371,7 @@ class GameplayScene {
   exit() {
     this.events = null;
     this.entityManager = null;
-    this.timeline = null;
+    this.blockSequencer = null;
     this.background = null;
   }
 }

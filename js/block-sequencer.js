@@ -1,4 +1,4 @@
-// BlockRunner plays back per-block timed events. A block is a list of
+// BlockSequencer plays back per-block timed events. A block is a list of
 // bgPortions (visual) and event sets (gameplay). Wave blocks award a
 // bonus on clear; waveless blocks don't.
 //
@@ -27,20 +27,20 @@
 //
 // On init() each event gets a generated `_id` so re-init is deterministic.
 //
-// The runner tracks the current block, the current event set within it,
+// The sequencer tracks the current block, the current event set within it,
 // the block's quota (how many enemies left), and a wave bonus accumulator.
 // The scene drives the per-tic `fire` and the per-event-set advance
 // logic.
 
-class BlockRunner {
+class BlockSequencer {
   constructor() {
     this.blockData = [];
-    this.currentBlockIdx = -1;
+    this.blockIdx = -1;
     this.currentBlock = null;
     this.currentEventSetIdx = -1;
     this.currentEventSet = null;
     this.currentEventSetStartTic = 0;
-    this.firedEvents = new Set();
+    this.firedEventIds = new Set();
     // Wave state for the current block (only set if kind === 'wave'):
     //   { startTic, startBonus, decay, killScore, quotaRemaining }
     this.wave = null;
@@ -78,11 +78,11 @@ class BlockRunner {
 
   // Move to a specific block index. The caller passes the engine's
   // current tic so the wave (if any) can stamp its start.
-  change(blockIdx, currentTic) {
-    this.currentBlockIdx = blockIdx;
+  switchToBlock(blockIdx, currentTic) {
+    this.blockIdx = blockIdx;
     this.currentBlock = this.blockData[blockIdx] || null;
     this.currentEventSetIdx = -1;
-    this.firedEvents = new Set();
+    this.firedEventIds = new Set();
     this._enterEventSet(0, currentTic);
   }
 
@@ -113,7 +113,7 @@ class BlockRunner {
     this.currentEventSetIdx = idx;
     this.currentEventSet = this.currentBlock?.eventSets?.[idx] || null;
     this.currentEventSetStartTic = currentTic;
-    this.firedEvents = new Set();
+    this.firedEventIds = new Set();
   }
 
   // Returns true if the current event set's quota has been met (all
@@ -129,11 +129,11 @@ class BlockRunner {
     const elapsedTic = tic - this.currentEventSetStartTic;
 
     this.currentEventSet.events.forEach(ev => {
-      if (this.firedEvents.has(ev._id)) return;
+      if (this.firedEventIds.has(ev._id)) return;
       if (ev.tic === undefined) return;
       if (ev._disabled) return;
       if (elapsedTic < ev.tic) return;
-      this.firedEvents.add(ev._id);
+      this.firedEventIds.add(ev._id);
       if (ev.spawn && callbacks.spawn) callbacks.spawn([ev.spawn], ev);
       if (ev.speed && callbacks.speed) callbacks.speed(ev.speed);
       if (ev.broadcast && this.events) this.events.emit('broadcast', ev.broadcast);
@@ -180,4 +180,4 @@ class BlockRunner {
   }
 }
 
-export default BlockRunner;
+export default BlockSequencer;

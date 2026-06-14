@@ -26,6 +26,7 @@ class Popcorn1 extends Enemy {
   }
 
   updateShooting(vw, vh, input, player) {
+    if (this.dontShoot) return;
     // Next shot switches
     if (this.nextShotFlag) {
       this.nextShotEnable = false;

@@ -28,9 +28,21 @@
         "speed": 2
       },
       {
-        "file": "stage1-bgPortion1.json",
+        "file": "stage1-bgPortion9.json",
+        "appearances": 1,
+        "speed": 2,
+        "activateBlock": 3
+      },
+      {
+        "file": "stage1-bgPortion10.json",
         "appearances": -1,
         "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion10.json",
+        "appearances": -1,
+        "speed": 0.5,
+        "speedTransitionTime": 500
       }
     ]
   },
@@ -39,7 +51,7 @@
       "kind": "wave",
       "eventSets": [
         {
-          "quota": 4,
+          "quota": 9,
           "events": [
             {
               "tic": 50,
@@ -47,15 +59,65 @@
                 "Popcorn1",
                 {
                   "x": [
+                    65,
                     80,
-                    100,
-                    120,
-                    140
-                  ]
+                    95
+                  ],
+                  "waitToStart": [
+                    10,
+                    0,
+                    10
+                  ],
+                  "hp": 1,
+                  "dontShoot": true,
+                  "speed": 1.5
                 }
               ],
-              "spawnCount": 4,
-              "spawnInterval": 30
+              "spawnCount": 3
+            },
+            {
+              "tic": 90,
+              "spawn": [
+                "Popcorn1",
+                {
+                  "x": [
+                    25,
+                    40,
+                    55
+                  ],
+                  "waitToStart": [
+                    10,
+                    0,
+                    10
+                  ],
+                  "hp": 1,
+                  "dontShoot": true,
+                  "speed": 1.5
+                }
+              ],
+              "spawnCount": 3
+            },
+            {
+              "tic": 130,
+              "spawn": [
+                "Popcorn1",
+                {
+                  "x": [
+                    105,
+                    120,
+                    135
+                  ],
+                  "waitToStart": [
+                    10,
+                    0,
+                    10
+                  ],
+                  "hp": 1,
+                  "dontShoot": true,
+                  "speed": 1.5
+                }
+              ],
+              "spawnCount": 3
             }
           ]
         },
@@ -64,11 +126,12 @@
           "events": [
             {
               "tic": 0,
+              "_collapsed": false,
               "spawn": [
                 "Popcorn2",
                 {
                   "yCenter": 35,
-                  "speed": 0.9,
+                  "speed": 1,
                   "amplitude": 6,
                   "phase": 90,
                   "mirror": true
@@ -94,7 +157,8 @@
       ],
       "startBonus": 1000,
       "decay": 1,
-      "releasesPortionOf": 0
+      "releasesPortionOf": 0,
+      "description": "Start of level!"
     },
     {
       "kind": "wave",
@@ -139,12 +203,12 @@
       "kind": "wave",
       "eventSets": [
         {
-          "quota": 0,
+          "quota": 5,
           "events": [
             {
               "tic": 0,
               "spawn": [
-                "Popcorn4"
+                "Brick1"
               ],
               "spawnCount": 5,
               "spawnInterval": 40
@@ -152,8 +216,11 @@
           ]
         }
       ],
-      "startBonus": 0,
-      "decay": 0
+      "startBonus": 1000,
+      "decay": 1,
+      "releasesPortionOf": 6,
+      "preventFromStart": true,
+      "description": "Portion 5 activates"
     }
   ]
 }

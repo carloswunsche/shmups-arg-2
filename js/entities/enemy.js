@@ -11,6 +11,7 @@ class Enemy extends Entity {
     this.shotEnable = true;
     this.waits.toStart = 0;
     this.speed = 1;
+    this.dontShoot = false;
   }
 
   init(params, vw, vh) {
@@ -20,6 +21,7 @@ class Enemy extends Entity {
     this.shotEnable = params.shotEnable ?? true;
     this.waits.toStart = params.waitToStart ?? 0;
     this.speed = params.speed ?? 1;
+    this.dontShoot = params.dontShoot ?? false;
   }
 
   // Call each tic with the current wait value. On any tic in `flashes`,

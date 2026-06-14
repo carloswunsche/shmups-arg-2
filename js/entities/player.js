@@ -45,9 +45,12 @@ class Player extends Entity {
     if (input.down)  this.y += this.speed * diagonal;
   }
 
-  updateShooting(vw, vh, input, player) {
+  updateEtc(vw, vh){
     this.fixOutOfBoundsX(vw);
     this.fixOutOfBoundsY(vh);
+  }
+
+  updateShooting(vw, vh, input, player) {
     if (input.buttonA) {
       if (this.currentAnimation === 'default') {
         this.setAnimation('shooting');

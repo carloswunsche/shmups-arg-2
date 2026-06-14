@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('blockDecay').addEventListener('input', onBlockMetaChange);
   $('blockReleasesPortionOf').addEventListener('input', onBlockMetaChange);
   $('blockPreventFromStart').addEventListener('change', onBlockMetaChange);
+  $('blockDescription').addEventListener('input', onBlockMetaChange);
   $('setQuota').addEventListener('input', () => {
     const s = getCurrentEventSet();
     if (!s) return;
@@ -196,6 +197,7 @@ function makeDefaultBlock(kind = 'waveless') {
     decay: 0,
     releasesPortionOf: -1,
     preventFromStart: false,
+    description: '',
     eventSets: [],
   };
 }
@@ -293,7 +295,7 @@ function loadData(data, name) {
   selectedEventSetIdx = (selectedBlockIdx >= 0 && blocks[0].eventSets.length > 0) ? 0 : -1;
   $('testFromIdx').value = data._testFromIdx !== undefined ? data._testFromIdx : 0;
   fileLabel.textContent = name;
-  setStatus(`Loaded ${blocks.length} block(s)`);
+  setStatus(`Loaded ${blocks.length} block(s), ${portions.length} portion(s)`);
   loadPortionPreviews().then(() => renderAll());
 }
 
@@ -305,6 +307,7 @@ function normalizeBlock(b) {
     releasesPortionOf: b.releasesPortionOf !== undefined ? b.releasesPortionOf
                        : (b.endPortionBlock !== undefined ? b.endPortionBlock : -1),
     preventFromStart: !!b.preventFromStart,
+    description: b.description || '',
     eventSets: (b.eventSets || []).map(s => normalizeEventSet(s)),
   };
 }
@@ -504,6 +507,9 @@ function serializeBlock(b) {
   if (b.preventFromStart) {
     out.preventFromStart = true;
   }
+  if (b.description) {
+    out.description = b.description;
+  }
   return out;
 }
 
@@ -664,12 +670,17 @@ function renderSidebar() {
 
     const summary = document.createElement('div');
     summary.className = 'block-summary';
-    const evTotal = b.eventSets.reduce((a, s) => a + s.events.length, 0);
-    let line = `${b.eventSets.length} set${b.eventSets.length === 1 ? '' : 's'} (${evTotal} ev)`;
-    if (b.kind === 'wave') line += ` · bonus ${b.startBonus} d${b.decay}`;
-    if (b.preventFromStart) line += ' · 🔒prevent';
-    if (b.releasesPortionOf >= 0) line += ` · releasesP#${b.releasesPortionOf}`;
-    summary.textContent = line;
+    let line = '';
+    if (b.description) line += b.description;
+    if (b.releasesPortionOf >= 0) {
+      if (line) line += ' · ';
+      line += `releases #${b.releasesPortionOf}`;
+    }
+    if (b.preventFromStart) {
+      if (line) line += ' · ';
+      line += '🔒prevent';
+    }
+    summary.textContent = line || '(no description)';
     div.appendChild(summary);
 
     if (isUnreachable) {
@@ -677,22 +688,6 @@ function renderSidebar() {
       warn.className = 'block-warn';
       warn.textContent = '⚠ never starts — no portion activates it';
       div.appendChild(warn);
-    }
-
-    if (i === selectedBlockIdx) {
-      b.eventSets.forEach((s, j) => {
-        const chip = document.createElement('div');
-        chip.className = 'eventset-chip' + (j === selectedEventSetIdx ? ' selected' : '');
-        chip.dataset.setIdx = j;
-        chip.innerHTML = `<span class="set-idx">#${j}</span> <span>events: ${s.events.length}</span><span class="set-quota">quota ${s.quota}</span>`;
-        const delBtn = document.createElement('button');
-        delBtn.className = 'btn-del-eventset';
-        delBtn.textContent = '✕';
-        delBtn.addEventListener('click', e => { e.stopPropagation(); removeEventSet(j); });
-        chip.appendChild(delBtn);
-        chip.addEventListener('click', () => { selectedEventSetIdx = j; renderAll(); });
-        div.appendChild(chip);
-      });
     }
 
     const delBtn = document.createElement('button');
@@ -717,7 +712,6 @@ function renderSidebar() {
 
     div.addEventListener('click', e => {
       if (e.target.closest('.btn-del-block')) return;
-      if (e.target.closest('.eventset-chip')) return;
       if (e.target.closest('.block-move')) return;
       selectedBlockIdx = i;
       selectedEventSetIdx = blocks[i].eventSets.length > 0 ? 0 : -1;
@@ -744,6 +738,7 @@ function renderDetail() {
   detailContent.classList.remove('hidden');
 
   $('blockKind').value = b.kind;
+  $('blockDescription').value = b.description || '';
   $('blockStartBonus').value = b.startBonus;
   $('blockDecay').value = b.decay;
   const isWave = b.kind === 'wave';
@@ -1385,6 +1380,7 @@ function onBlockMetaChange() {
     b.releasesPortionOf = Number.isNaN(rpo) ? -1 : rpo;
   }
   b.preventFromStart = $('blockPreventFromStart').checked;
+  b.description = $('blockDescription').value || '';
   renderDetail();
   renderSidebar();
 }

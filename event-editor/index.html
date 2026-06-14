@@ -24,8 +24,8 @@
     <main>
       <aside id="sidebar">
         <div class="sidebar-header">
-          <h2>Blocks</h2>
-          <button id="btnAddBlock" title="Add new block">+</button>
+          <h2>Block Timeline</h2>
+          <button id="btnAddBlock" title="Add new block">+ Add</button>
         </div>
         <div id="blockList"></div>
       </aside>
@@ -39,7 +39,9 @@
         <div id="detailContent" class="hidden">
           <div id="blockMeta">
             <div class="field-row">
-              <label>Kind</label>
+              <label>Description</label>
+              <input type="text" id="blockDescription" value="" placeholder="" style="width: 150px;">
+              <label class="inline-label">Kind</label>
               <select id="blockKind">
                 <option value="wave">wave</option>
                 <option value="waveless">waveless</option>
@@ -72,7 +74,7 @@
 
           <div id="setDetail">
             <div class="section-header">
-              <h3>Selected Event Set</h3>
+              <h3>Events</h3>
               <span id="setDetailHint" class="hint hidden"></span>
               <div class="event-controls">
                 <button id="btnExpandAll">Expand all</button>
