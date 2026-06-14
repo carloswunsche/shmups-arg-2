@@ -98,6 +98,19 @@ aside {
   overflow: hidden;
 }
 
+/* Right-side background timeline column */
+#backgroundPanel {
+  /* width: 360px; */
+  width: 479px;
+  min-width: 360px;
+  border-right: none;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+}
+#backgroundPanel.hidden { display: none; }
+#backgroundPanel .hint { margin: 6px 0 10px; display: block; }
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -330,6 +343,7 @@ aside {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 8px;
 }
 
 .field-row label {
@@ -348,7 +362,7 @@ aside {
   background: var(--bg);
   color: var(--text);
   outline: none;
-  width: 120px;
+  width: 55px;
   border-radius: 2px;
 }
 
@@ -377,7 +391,7 @@ aside {
   text-transform: uppercase;
   color: var(--text2);
   letter-spacing: 1px;
-  margin-left: 4px;
+  margin-left: 20px;
 }
 
 .field-row select {
@@ -406,7 +420,7 @@ aside {
 
 #timeline {
   position: relative;
-  height: 56px;
+  height: 40px;
   background: var(--surface);
   border: 1px solid var(--border);
   overflow: hidden;
@@ -520,7 +534,7 @@ aside {
   color: var(--accent);
 }
 
-#btnAddEvent {
+#btnAddEvent, #btnAddBlock, #btnAddEventSet {
   padding: 4px 12px;
   cursor: pointer;
   font-family: var(--font);
@@ -533,7 +547,7 @@ aside {
   letter-spacing: 0.5px;
 }
 
-#btnAddEvent:hover {
+#btnAddEvent:hover, #btnAddBlock:hover, #btnAddEventSet:hover {
   background: var(--accent2);
   color: #111;
 }
@@ -1202,26 +1216,41 @@ footer {
 #bgPortionList {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 .bg-portion {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  /* flex-direction: column; */
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 6px 8px;
-  border-radius: 2px;
-  flex-wrap: wrap;
+  padding: 8px;
 }
+/* First child in DOM is the LAST to scroll in (top of screen); round its top.
+   Last child is portion #0 (scrolls in first); round its bottom. */
+.bg-portion:first-child { border-radius: 4px 4px 0 0; }
+.bg-portion:last-child { border-radius: 0 0 4px 4px; }
+.bg-portion:not(:first-child) { border-top: none; }
+.bg-portion .portion-idx {
+  font-weight: bold;
+  color: var(--accent);
+  font-size: 11px;
+  width: 100%;
+}
+/* Thumbnail keeps the portion's true aspect ratio (no squashing). The canvas
+   is generated at the portion's real W:H, so width:100% + height:auto preserves it. */
 .bg-portion .portion-preview {
-  width: 60px;
-  height: 30px;
+  width: 100%;
+  height: auto;
+  display: block;
   background: var(--surface2);
-  flex-shrink: 0;
   border-radius: 2px;
   image-rendering: pixelated;
 }
+/* Placeholder (no preview yet) keeps a 4:3 box so the row doesn't collapse. */
+.bg-portion div.portion-preview { aspect-ratio: 4 / 3; }
 .bg-portion .field-row { gap: 4px; }
 .bg-portion .field-row label {
   font-size: 10px;
@@ -1241,8 +1270,11 @@ footer {
   border-radius: 2px;
 }
 .bg-portion .field-row input:focus { border-color: var(--accent); }
-.bg-portion .field-row input[type="text"] { width: 200px; }
-.bg-portion .field-row input[type="number"] { width: 56px; }
+.bg-portion .field-row { flex-wrap: wrap; align-items: center; }
+.bg-portion .field-row .flex-break { width: 100%; }
+.bg-portion .field-row input[type="text"] { flex: 1 1 100%; width: auto; min-width: 0; }
+.bg-portion .field-row select.p-file { flex: 1 1 100%; width: auto; min-width: 0; }
+.bg-portion .field-row input[type="number"] { width: 48px; }
 .bg-portion .field-row select {
   padding: 2px 6px;
   font-family: var(--font);
@@ -1430,8 +1462,8 @@ footer {
 
 #setDetail {
   margin-top: 8px;
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
+  /* border-top: 1px solid var(--border); */
+  /* padding-top: 12px; */
 }
 #setDetail .section-header h3 {
   font-size: 12px;
@@ -1441,9 +1473,36 @@ footer {
 }
 #setDetailHint { margin-left: 8px; }
 
-#setQuota { width: 80px; }
+#setQuota { width: 56px; }
 
 #eventsContainer { margin-top: 12px; }
+
+/* Validation banner (soft-lock warnings, etc.) */
+#validationBanner {
+  padding: 8px 16px;
+  background: rgba(255, 170, 51, 0.12);
+  border-bottom: 1px solid var(--warning);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.5;
+}
+#validationBanner.hidden { display: none; }
+#validationBanner .vb-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-right: 6px;
+}
+#validationBanner ul { margin: 4px 0 0; padding-left: 18px; }
+#validationBanner li { margin: 2px 0; }
+
+/* Sidebar warning marker on a soft-locked block */
+.block-item.has-warning { border-left: 3px solid var(--warning); }
+.block-item .block-warn {
+  color: var(--warning);
+  font-size: 11px;
+  margin-top: 2px;
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }

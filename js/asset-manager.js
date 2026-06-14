@@ -83,9 +83,10 @@ class AssetManager {
     await Promise.all((manifest.stages || []).map(stage => this._loadStage(stage, manifestUrl)));
   }
 
-  // A stage carries `events` (an array of blocks). Each block may carry
-  // `bgPortions`, which we load as per-block, Y-flipped row data grouped
-  // by block (no flattening). The Background consumes this grouped shape.
+  // A stage carries `events` (gameplay blocks) and an independent
+  // `background.portions` array (the background's own timeline). Portions are
+  // loaded as a flat, ordered sequence of Y-flipped, per-layer row data that
+  // the Background walks on its own.
   async _loadStage(stage, manifestUrl) {
     const entry = { id: stage.id };
     this.stages[stage.id] = entry;
@@ -101,54 +102,33 @@ class AssetManager {
     entry.events = blocks;
     entry.testFromIdx = Array.isArray(data) ? undefined : data._testFromIdx;
 
-    if (this._stageHasBgPortions(blocks)) {
-      entry.background = await this._loadBackground(blocks, eventsUrl);
+    const portions = (!Array.isArray(data) && data.background && data.background.portions) || [];
+    if (portions.length > 0) {
+      entry.background = await this._loadBackground(portions, eventsUrl);
     }
   }
 
-  _stageHasBgPortions(blocks) {
-    for (const block of blocks) {
-      if (block.bgPortions && block.bgPortions.length > 0) return true;
-    }
-    return false;
-  }
-
-  // Load every block's bgPortions as raw, Y-flipped, per-layer rows grouped
-  // by block. Returns:
+  // Load the stage's background portions as a flat, ordered sequence. Returns:
   //   {
   //     tileW, tileH, mapWidth, tilesetPath, tilesetImage,
   //     layerNames: [...],            // union of all layer names, draw order
-  //     blocks: [                     // one entry per events block (in order)
-  //       { portions: [ Portion, ... ] },
-  //       ...
-  //     ]
+  //     portions: [ Portion, ... ]    // flat timeline, in authoring order
   //   }
   // Portion = {
   //   height,                         // row count
-  //   appearances, label,
+  //   appearances, speed, speedTransitionTime, speedEasing, activateBlock, label,
   //   layers: { [layerName]: row[] }  // each row[] is bottom-first, length=mapWidth
   // }
-  async _loadBackground(blocks, eventsUrl) {
-    // Flatten to (blockIdx, bp) pairs for parallel fetch, then regroup.
-    const jobs = [];
-    blocks.forEach((block, bi) => {
-      (block.bgPortions || []).forEach((bp, pi) => {
-        jobs.push({ bi, pi, bp });
-      });
-    });
-    if (jobs.length === 0) {
-      throw new Error(`[assets] _loadBackground called with no bgPortions: ${eventsUrl}`);
-    }
-
-    const loaded = await Promise.all(jobs.map(async job => {
-      const url = this._resolveAssetUrl(job.bp.file, eventsUrl);
+  async _loadBackground(portionDefs, eventsUrl) {
+    const loaded = await Promise.all(portionDefs.map(async (bp, idx) => {
+      const url = this._resolveAssetUrl(this._portionFileRef(bp.file), eventsUrl);
       const data = await this._fetchJson(url);
-      return { ...job, data, url };
+      return { idx, bp, data, url };
     }));
 
     const layerNameSet = [];
     let ref = null;
-    const blockGroups = blocks.map(() => ({ portions: [] }));
+    const portions = new Array(portionDefs.length);
 
     for (const item of loaded) {
       const data = item.data;
@@ -171,16 +151,17 @@ class AssetManager {
         layers[name] = rows;
       });
 
-      blockGroups[item.bi].portions[item.pi] = {
+      portions[item.idx] = {
         height: H,
         appearances: item.bp.appearances !== undefined ? item.bp.appearances : DEFAULT_APPEARANCES,
+        speed: item.bp.speed || 0,
+        speedTransitionTime: item.bp.speedTransitionTime || 0,
+        speedEasing: item.bp.speedEasing || 'linear',
+        activateBlock: item.bp.activateBlock !== undefined ? item.bp.activateBlock : -1,
         label: item.bp.label || '',
         layers,
       };
     }
-
-    // Compact any holes (blocks without portions stay as empty arrays).
-    blockGroups.forEach(g => { g.portions = g.portions.filter(Boolean); });
 
     const refData = ref.data;
     const rawTilesetPath = refData.tileset || refData.tilesets?.[0]?.image || '';
@@ -194,7 +175,7 @@ class AssetManager {
       tilesetPath,
       tilesetImage,
       layerNames: layerNameSet,
-      blocks: blockGroups,
+      portions,
     };
   }
 
@@ -223,6 +204,16 @@ class AssetManager {
       img.onerror = () => reject(new Error(`[assets] failed to load image: ${url}`));
       img.src = url;
     });
+  }
+
+  // Background portion `file` may be a bare filename (e.g. "stage1-bgPortion1.json"),
+  // which lives in the sibling backgrounds dir relative to the events JSON.
+  // Paths that already contain a slash (e.g. "../backgrounds/x.json", "/abs", "http")
+  // are returned untouched for backward compatibility.
+  _portionFileRef(file) {
+    if (!file) return file;
+    if (file.includes('/')) return file;
+    return '../backgrounds/' + file;
   }
 
   // Resolve `relativePath` against `baseUrl`. The URL constructor handles

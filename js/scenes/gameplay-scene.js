@@ -37,9 +37,8 @@ class GameplayScene {
     this.tic = 0;
     this._processTic = 0;
     this._pendingSpawns = [];
+    this._pendingActivations = new Set();
 
-    // backgroundEnabled: when false, no Background is created and block
-    //   advancement always ignores the handshake (pure gameplay testing).
     this.backgroundEnabled = true;
   }
 
@@ -77,27 +76,61 @@ class GameplayScene {
     this.timeline.init(stageDef.events);
     const startBlock = stageDef.testFromIdx || 0;
 
+    // Start the first block immediately so tic-0 events fire.
+    this._startBlock(startBlock);
     if (this.backgroundEnabled && stageDef.background) {
       this.background = new Background(stageDef.background, {
         viewportH: this.renderer.height,
+        onBlockReady: (activateBlock) => this._onBlockReady(activateBlock),
       });
+      // The background runs its own timeline. For a normal run it starts at
+      // portion 0; when testing from a mid-stage block, start at the portion
+      // that would have activated that block so the right scenery is shown
+      // and we don't stall on an unreleased endless portion.
+      this.background.start(this._bgStartPortionFor(startBlock, stageDef.background));
     } else {
       this.background = null;
     }
-
-    // Start the first block immediately. The timeline needs to be positioned
-    // now so tic-0 events can fire even without a bg.
-    this._startBlock(startBlock);
-    if (this.background) this.background.start(startBlock);
   }
 
-  // Position the timeline at a block and (re)start its wave. Called for the
-  // start block and whenever a block advance moves us forward.
+  // Find the portion index whose activateBlock targets `blockIdx`; fall back
+  // to 0 (the natural stage start).
+  _bgStartPortionFor(blockIdx, bg) {
+    if (!blockIdx || !bg || !bg.portions) return 0;
+    const i = bg.portions.findIndex(p => p.activateBlock === blockIdx);
+    return i >= 0 ? i : 0;
+  }
+
+  // Position the timeline at a block and (re)start its wave. A block is
+  // "running" while it has a live event set; guard against starting the
+  // one that is already running (defensive against duplicate activations).
   _startBlock(blockIdx) {
+    if (blockIdx === this.timeline.currentBlockIdx && this.timeline.currentEventSet) return;
     this.timeline.change(blockIdx, this.tic);
     if (this.timeline.currentBlock?.kind === 'wave') {
       this.timeline.startWave(this.timeline.currentBlock, this.tic);
     }
+  }
+
+  // Background handshake: a portion whose `activateBlock` points at `blockIdx`
+  // has scrolled into view. Only `preventFromStart` blocks care about this.
+  //
+  // Pacing rule (one block runs at a time):
+  //   - If the scene is sitting idle AT this block (previous block cleared,
+  //     this one armed but not started) -> start it now.
+  //   - If the scene hasn't reached this block yet (player still fighting an
+  //     earlier block) -> remember it; _onBlockCleared starts it on arrival.
+  //   - If the scene is already past it -> ignore (stale signal).
+  _onBlockReady(blockIdx) {
+    const blockDef = this.timeline.blockData[blockIdx];
+    if (!blockDef || !blockDef.preventFromStart) return;
+
+    if (blockIdx === this.timeline.currentBlockIdx) {
+      this._startBlock(blockIdx);
+    } else if (blockIdx > this.timeline.currentBlockIdx) {
+      this._pendingActivations.add(blockIdx);
+    }
+    // blockIdx < currentBlockIdx: stale, ignore.
   }
 
   _setupCollisions() {
@@ -187,26 +220,52 @@ class GameplayScene {
   }
 
   // The current block has been cleared (its last event set quota hit 0).
-  // Award the wave bonus now, release the background's endless portion,
-  // and advance to the next block.
+  //   1. Award the wave bonus (wave blocks only).
+  //   2. If the block has `releasesPortionOf`, flip that block's looping (-1)
+  //      background portion to 1 so the background can scroll past it.
+  //   3. Advance the scene position to the next block. Auto-start it unless
+  //      it is `preventFromStart`, in which case it waits for a background
+  //      portion's activateBlock (which may already have arrived and been
+  //      parked in _pendingActivations).
   _onBlockCleared() {
-    const clearedBlockIdx = this.timeline.currentBlockIdx;
+    const clearedIdx = this.timeline.currentBlockIdx;
     const cleared = this.timeline.currentBlock || {};
-    const wasWave = cleared.kind === 'wave';
-    if (wasWave) {
+
+    if (cleared.kind === 'wave') {
       const bonus = this.timeline.computeWaveBonus(this.tic);
       if (bonus > 0) this.events.emit('score.add', { amount: bonus });
     }
     this.timeline.endWave();
 
-    const nextIdx = clearedBlockIdx + 1;
+    if (this.background && cleared.releasesPortionOf !== undefined && cleared.releasesPortionOf >= 0) {
+      this.background.releasePortion(cleared.releasesPortionOf);
+    }
+
+    const nextIdx = clearedIdx + 1;
     if (nextIdx >= this.timeline.blockData.length) {
-      if (this.background) this.background.requestEndPortion(clearedBlockIdx);
+      // Stage's last block cleared. Go idle; the background keeps scrolling.
+      this.timeline.currentEventSet = null;
+      this.timeline.currentEventSetIdx = -1;
       return;
     }
 
-    if (this.background) this.background.requestEndPortion(clearedBlockIdx);
-    this._startBlock(nextIdx);
+    const nextDef = this.timeline.blockData[nextIdx];
+
+    // Move the scene position to the next block but stay idle (no live event
+    // set) so the update loop won't try to advance again until it actually
+    // starts. This lets _onBlockReady recognise "we are sitting at nextIdx".
+    this.timeline.currentBlockIdx = nextIdx;
+    this.timeline.currentBlock = nextDef;
+    this.timeline.currentEventSet = null;
+    this.timeline.currentEventSetIdx = -1;
+
+    if (!nextDef.preventFromStart) {
+      this._startBlock(nextIdx);
+    } else if (this._pendingActivations.delete(nextIdx)) {
+      // A portion already announced this block while we were busy — start now.
+      this._startBlock(nextIdx);
+    }
+    // else: armed and idle, waiting for the portion's activateBlock.
   }
 
   update() {

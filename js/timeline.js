@@ -7,7 +7,16 @@
 //     kind:        'wave' | 'waveless'
 //     startBonus?: number  (only for kind: 'wave')
 //     decay?:      number  (only for kind: 'wave'; points/tic)
-//     bgPortions:   [{ file, appearances }, ...]
+//     releasesPortionOf?: number  (on clear, flip block N's looping (-1) portion to 1 so the
+//                                   background can scroll past it; -1 = releases nothing)
+//     preventFromStart?: boolean   (block does NOT auto-start when the previous block clears;
+//                                   it waits for a background portion whose activateBlock points
+//                                   at it to scroll into view — used for wind-down/resting sections)
+//     bgPortions:   [{ file, appearances, speed?, speedTransitionTime?, speedEasing?, activateBlock? }, ...]
+//        appearances: how many times the portion scrolls before the cursor advances.
+//                     -1 = loop forever until a wave block's releasesPortionOf unlocks it.
+//        activateBlock: when this portion's first row enters the viewport, start block N
+//                       (only has an effect if block N is preventFromStart).
 //     eventSets:    [{ quota, events: [...] }, ...]
 //   event:
 //     tic:         number (mandatory; relative to the event set's start tic)

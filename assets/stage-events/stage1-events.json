@@ -1,25 +1,46 @@
 {
   "_testFromIdx": 0,
+  "background": {
+    "portions": [
+      {
+        "file": "stage1-bgPortion1.json",
+        "appearances": -1,
+        "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion2.json",
+        "appearances": 1,
+        "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion3.json",
+        "appearances": 1,
+        "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion4.json",
+        "appearances": -1,
+        "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion5.json",
+        "appearances": 1,
+        "speed": 2
+      },
+      {
+        "file": "stage1-bgPortion1.json",
+        "appearances": -1,
+        "speed": 2
+      }
+    ]
+  },
   "events": [
     {
       "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1
-        }
-      ],
       "eventSets": [
         {
           "quota": 4,
           "events": [
-            {
-              "tic": 0,
-              "_collapsed": false,
-              "speed": {
-                "value": 1
-              }
-            },
             {
               "tic": 50,
               "spawn": [
@@ -71,50 +92,30 @@
           ]
         }
       ],
-      "startBonus": 10000,
-      "decay": 5
+      "startBonus": 1000,
+      "decay": 1,
+      "releasesPortionOf": 0
     },
     {
-      "kind": "waveless",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion2.json",
-          "appearances": 1
-        },
-        {
-          "file": "../backgrounds/stage1-bgPortion3.json",
-          "appearances": 1
-        }
-      ],
+      "kind": "wave",
       "eventSets": [
         {
           "quota": 1,
           "events": [
             {
               "tic": 0,
-              "speed": {
-                "value": 1,
-                "transitionTime": 100
-              }
-            },
-            {
-              "tic": 20,
               "spawn": [
                 "Popcorn3"
               ]
             }
           ]
         }
-      ]
+      ],
+      "startBonus": 1000,
+      "decay": 1
     },
     {
       "kind": "wave",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion4.json",
-          "appearances": -1
-        }
-      ],
       "eventSets": [
         {
           "quota": 3,
@@ -130,27 +131,29 @@
           ]
         }
       ],
-      "startBonus": 15000,
-      "decay": 10
+      "startBonus": 1000,
+      "decay": 1,
+      "releasesPortionOf": 3
     },
     {
-      "kind": "waveless",
-      "bgPortions": [
-        {
-          "file": "../backgrounds/stage1-bgPortion5.json",
-          "appearances": 1
-        },
-        {
-          "file": "../backgrounds/stage1-bgPortion1.json",
-          "appearances": -1
-        }
-      ],
+      "kind": "wave",
       "eventSets": [
         {
           "quota": 0,
-          "events": []
+          "events": [
+            {
+              "tic": 0,
+              "spawn": [
+                "Popcorn4"
+              ],
+              "spawnCount": 5,
+              "spawnInterval": 40
+            }
+          ]
         }
-      ]
+      ],
+      "startBonus": 0,
+      "decay": 0
     }
   ]
 }

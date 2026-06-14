@@ -37,6 +37,7 @@ function loadEntitySprites() {
 }
 
 let blocks = [];
+let portions = [];               // top-level background timeline (flat)
 let selectedBlockIdx = -1;
 let selectedEventSetIdx = -1;
 let currentFileName = null;
@@ -99,7 +100,6 @@ const timelineLabels = $('timelineLabels');
 
 document.addEventListener('DOMContentLoaded', () => {
   populateDatalist('entityClasses', ENTITY_CLASSES);
-  populateDatalist('tilemapFiles', TILEMAP_FILES);
 
   $('btnLoad').addEventListener('click', () => $('fileInput').click());
   $('btnSave').addEventListener('click', saveFile);
@@ -114,8 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btnRestore').addEventListener('click', restoreFromBackup);
   $('btnAddBlock').addEventListener('click', addBlock);
   $('btnAddPortion').addEventListener('click', () => {
-    if (selectedBlockIdx < 0) return;
-    blocks[selectedBlockIdx].bgPortions.push(makeDefaultPortion());
+    portions.push(makeDefaultPortion());
     renderAll();
     loadPortionPreviews();
   });
@@ -133,6 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
   $('blockKind').addEventListener('change', onBlockMetaChange);
   $('blockStartBonus').addEventListener('input', onBlockMetaChange);
   $('blockDecay').addEventListener('input', onBlockMetaChange);
+  $('blockReleasesPortionOf').addEventListener('input', onBlockMetaChange);
+  $('blockPreventFromStart').addEventListener('change', onBlockMetaChange);
   $('setQuota').addEventListener('input', () => {
     const s = getCurrentEventSet();
     if (!s) return;
@@ -193,7 +194,8 @@ function makeDefaultBlock(kind = 'waveless') {
     kind,
     startBonus: kind === 'wave' ? 1000 : 0,
     decay: 0,
-    bgPortions: [makeDefaultPortion()],
+    releasesPortionOf: -1,
+    preventFromStart: false,
     eventSets: [],
   };
 }
@@ -202,6 +204,10 @@ function makeDefaultPortion() {
   return {
     file: 'stage1-bgPortion1.json',
     appearances: -1,
+    speed: 0,
+    speedTransitionTime: 0,
+    speedEasing: 'linear',
+    activateBlock: -1,
   };
 }
 
@@ -282,6 +288,7 @@ function loadData(data, name) {
     return;
   }
   blocks = data.events.map(b => normalizeBlock(b));
+  portions = normalizePortions(data);
   selectedBlockIdx = blocks.length > 0 ? 0 : -1;
   selectedEventSetIdx = (selectedBlockIdx >= 0 && blocks[0].eventSets.length > 0) ? 0 : -1;
   $('testFromIdx').value = data._testFromIdx !== undefined ? data._testFromIdx : 0;
@@ -295,15 +302,41 @@ function normalizeBlock(b) {
     kind: b.kind === 'wave' ? 'wave' : 'waveless',
     startBonus: b.startBonus || 0,
     decay: b.decay || 0,
-    bgPortions: (b.bgPortions || []).map(p => normalizePortion(p)),
+    releasesPortionOf: b.releasesPortionOf !== undefined ? b.releasesPortionOf
+                       : (b.endPortionBlock !== undefined ? b.endPortionBlock : -1),
+    preventFromStart: !!b.preventFromStart,
     eventSets: (b.eventSets || []).map(s => normalizeEventSet(s)),
   };
 }
 
+// Read the top-level background.portions array. Falls back to flattening any
+// legacy per-block bgPortions so old files still open.
+function normalizePortions(data) {
+  if (data.background && Array.isArray(data.background.portions)) {
+    return data.background.portions.map(p => normalizePortion(p));
+  }
+  const flat = [];
+  (data.events || []).forEach(b => (b.bgPortions || []).forEach(p => flat.push(normalizePortion(p))));
+  return flat;
+}
+
+// Reduce a stored file path to its bare filename (drop any directory prefix
+// such as "../backgrounds/"). The editor works in bare filenames; the runtime
+// resolves them against the backgrounds dir.
+function bareFileName(f) {
+  if (!f) return '';
+  const slash = f.lastIndexOf('/');
+  return slash >= 0 ? f.substring(slash + 1) : f;
+}
+
 function normalizePortion(p) {
   return {
-    file: p.file || 'stage1-bgPortion1.json',
+    file: bareFileName(p.file) || 'stage1-bgPortion1.json',
     appearances: p.appearances !== undefined ? p.appearances : -1,
+    speed: p.speed || 0,
+    speedTransitionTime: p.speedTransitionTime || 0,
+    speedEasing: p.speedEasing || 'linear',
+    activateBlock: p.activateBlock !== undefined ? p.activateBlock : -1,
   };
 }
 
@@ -319,8 +352,8 @@ function normalizeEventSet(s) {
   };
 }
 
-async function loadPortionPreview(portion, blockIdx, portionIdx) {
-  const key = blockIdx + ':' + portionIdx;
+async function loadPortionPreview(portion, portionIdx) {
+  const key = String(portionIdx);
   if (!portion.file) { blockPreviews[key] = null; return; }
   const url = resolveTilemapPath(portion.file);
   try {
@@ -344,12 +377,8 @@ async function loadPortionPreview(portion, blockIdx, portionIdx) {
 }
 
 function loadPortionPreviews() {
-  const tasks = [];
-  blocks.forEach((b, bi) => {
-    b.bgPortions.forEach((p, pi) => {
-      tasks.push(loadPortionPreview(p, bi, pi));
-    });
-  });
+  blockPreviews = {};
+  const tasks = portions.map((p, pi) => loadPortionPreview(p, pi));
   return Promise.all(tasks);
 }
 
@@ -443,17 +472,23 @@ function buildOutput() {
   const testFrom = parseInt($('testFromIdx').value) || 0;
   return {
     _testFromIdx: testFrom,
+    background: { portions: portions.map(p => serializePortion(p)) },
     events: blocks.map(b => serializeBlock(b)),
   };
+}
+
+function serializePortion(p) {
+  const po = { file: p.file, appearances: p.appearances };
+  if (p.speed) po.speed = p.speed;
+  if (p.speedTransitionTime) po.speedTransitionTime = p.speedTransitionTime;
+  if (p.speedEasing && p.speedEasing !== 'linear') po.speedEasing = p.speedEasing;
+  if (p.activateBlock !== undefined && p.activateBlock >= 0) po.activateBlock = p.activateBlock;
+  return po;
 }
 
 function serializeBlock(b) {
   const out = {
     kind: b.kind,
-    bgPortions: b.bgPortions.map(p => ({
-      file: p.file,
-      appearances: p.appearances,
-    })),
     eventSets: b.eventSets.map(s => ({
       quota: s.quota,
       events: s.events.map(e => serializeEvent(e)),
@@ -462,6 +497,12 @@ function serializeBlock(b) {
   if (b.kind === 'wave') {
     out.startBonus = b.startBonus;
     out.decay = b.decay;
+  }
+  if (b.releasesPortionOf !== undefined && b.releasesPortionOf >= 0) {
+    out.releasesPortionOf = b.releasesPortionOf;
+  }
+  if (b.preventFromStart) {
+    out.preventFromStart = true;
   }
   return out;
 }
@@ -555,8 +596,55 @@ function resolveTilemapPath(p) {
 }
 
 function renderAll() {
+  validateStage();
   renderSidebar();
+  renderBackgroundPanel();
   renderDetail();
+}
+
+// Find preventFromStart blocks that nothing can ever start. In the hybrid
+// model, auto-advance does NOT start a preventFromStart block; only a
+// background portion whose `activateBlock` points at it will. So such a block
+// must be the target of at least one portion's activateBlock, otherwise it
+// arms and waits forever, soft-locking the stage. The test-start block is
+// considered reachable (it always starts when you test from it).
+let stageWarnings = { unreachable: new Set() };
+
+function validateStage() {
+  const unreachable = new Set();
+  const testFromIdx = parseInt($('testFromIdx').value);
+
+  // Collect every block index pointed at by some portion's activateBlock.
+  const activated = new Set();
+  portions.forEach(p => {
+    if (p.activateBlock !== undefined && p.activateBlock >= 0) activated.add(p.activateBlock);
+  });
+
+  blocks.forEach((b, i) => {
+    if (!b.preventFromStart) return;
+    if (i === testFromIdx) return;        // explicit test entry always starts
+    if (activated.has(i)) return;         // a portion will start it
+    unreachable.add(i);
+  });
+
+  stageWarnings = { unreachable };
+  renderValidationBanner();
+}
+
+function renderValidationBanner() {
+  const el = $('validationBanner');
+  if (!el) return;
+  const { unreachable } = stageWarnings;
+  if (!unreachable || unreachable.size === 0) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  const items = [...unreachable].sort((a, b) => a - b).map(i =>
+    `<li>Block <strong>#${i}</strong> is <code>preventFromStart</code> but no portion has <code>activateBlock: ${i}</code>. It will never start (soft-lock). Point a portion's Activate field at #${i}, or uncheck Prevent from start.</li>`
+  ).join('');
+  el.innerHTML = `<span class="vb-title">⚠ Soft-lock</span>Unreachable blocks:<ul>${items}</ul>`;
+  el.classList.remove('hidden');
 }
 
 function renderSidebar() {
@@ -565,7 +653,8 @@ function renderSidebar() {
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
     const div = document.createElement('div');
-    div.className = 'block-item' + (i === selectedBlockIdx ? ' selected' : '');
+    const isUnreachable = stageWarnings.unreachable && stageWarnings.unreachable.has(i);
+    div.className = 'block-item' + (i === selectedBlockIdx ? ' selected' : '') + (isUnreachable ? ' has-warning' : '');
     div.dataset.idx = i;
 
     const head = document.createElement('div');
@@ -575,13 +664,20 @@ function renderSidebar() {
 
     const summary = document.createElement('div');
     summary.className = 'block-summary';
-    const portionText = b.bgPortions.length === 0 ? 'no bg' :
-      b.bgPortions.map(p => p.file.replace('.json', '').replace('stage1-bgPortion', '#')).join(' ');
     const evTotal = b.eventSets.reduce((a, s) => a + s.events.length, 0);
-    let line = `${portionText} · ${b.eventSets.length} set${b.eventSets.length === 1 ? '' : 's'} (${evTotal} ev)`;
+    let line = `${b.eventSets.length} set${b.eventSets.length === 1 ? '' : 's'} (${evTotal} ev)`;
     if (b.kind === 'wave') line += ` · bonus ${b.startBonus} d${b.decay}`;
+    if (b.preventFromStart) line += ' · 🔒prevent';
+    if (b.releasesPortionOf >= 0) line += ` · releasesP#${b.releasesPortionOf}`;
     summary.textContent = line;
     div.appendChild(summary);
+
+    if (isUnreachable) {
+      const warn = document.createElement('div');
+      warn.className = 'block-warn';
+      warn.textContent = '⚠ never starts — no portion activates it';
+      div.appendChild(warn);
+    }
 
     if (i === selectedBlockIdx) {
       b.eventSets.forEach((s, j) => {
@@ -656,20 +752,34 @@ function renderDetail() {
   $('blockHint').textContent = isWave
     ? `+${b.startBonus} on block end, −${b.decay}/tic + kill scores`
     : 'no wave bonus';
+  $('blockReleasesPortionOf').value = b.releasesPortionOf;
+  $('blockPreventFromStart').checked = !!b.preventFromStart;
 
-  renderPortions(b);
   renderEventSets();
   renderSetDetail();
 }
 
-function renderPortions(b) {
+// Stage-wide background timeline panel (independent of the selected block).
+function renderBackgroundPanel() {
+  const panel = $('backgroundPanel');
+  if (!panel) return;
+  if (blocks.length === 0) { panel.classList.add('hidden'); return; }
+  panel.classList.remove('hidden');
+
   const list = $('bgPortionList');
   list.innerHTML = '';
-  b.bgPortions.forEach((p, i) => {
+  // Render LAST portion first so the list reads bottom→top like the scroll:
+  // portion #0 (scrolls in first) sits at the bottom, later portions stack above.
+  for (let i = portions.length - 1; i >= 0; i--) {
+    const p = portions[i];
     const row = document.createElement('div');
     row.className = 'bg-portion';
-    const previewKey = selectedBlockIdx + ':' + i;
-    const preview = blockPreviews[previewKey];
+
+    const idxTag = document.createElement('div');
+    idxTag.className = 'portion-idx';
+    idxTag.textContent = '#' + i + (p.appearances < 0 ? ' · loops' : '');
+
+    const preview = blockPreviews[String(i)];
     if (preview) row.appendChild(preview.cloneNode(true));
     else {
       const ph = document.createElement('div');
@@ -677,28 +787,51 @@ function renderPortions(b) {
       row.appendChild(ph);
     }
 
+    // Build the file dropdown: always list every known tilemap; if the stored
+    // value isn't among them, include it so it stays selected.
+    const fileOpts = TILEMAP_FILES.includes(p.file) ? TILEMAP_FILES : [p.file, ...TILEMAP_FILES];
+    const fileOptsHtml = fileOpts
+      .map(f => `<option value="${escapeHtml(f)}" ${f === p.file ? 'selected' : ''}>${escapeHtml(f)}</option>`)
+      .join('');
+
     const fields = document.createElement('div');
     fields.className = 'field-row';
     fields.innerHTML = `
       <label>File</label>
-      <input type="text" class="p-file" value="${escapeHtml(p.file)}" list="tilemapFiles">
+      <select class="p-file">${fileOptsHtml}</select>
       <label>Appear</label>
       <input type="number" class="p-app" min="-1" value="${p.appearances}">
+      <label>Speed</label>
+      <input type="number" class="p-speed" step="any" value="${p.speed || 0}">
+      <div class="flex-break"></div><label>Trans</label>
+      <input type="number" class="p-trans" min="0" value="${p.speedTransitionTime || 0}">
+      <label>Easing</label>
+      <select class="p-easing">
+        <option value="linear" ${p.speedEasing === 'linear' ? 'selected' : ''}>linear</option>
+        <option value="ease-in" ${p.speedEasing === 'ease-in' ? 'selected' : ''}>ease-in</option>
+        <option value="ease-out" ${p.speedEasing === 'ease-out' ? 'selected' : ''}>ease-out</option>
+        <option value="ease-in-out" ${p.speedEasing === 'ease-in-out' ? 'selected' : ''}>ease-in-out</option>
+      </select>
+      <label>Activate</label>
+      <input type="number" class="p-activate" min="-1" value="${p.activateBlock !== undefined ? p.activateBlock : -1}">
     `;
+    fields.prepend(idxTag);
     row.appendChild(fields);
 
     const ctrl = document.createElement('div');
     ctrl.className = 'field-row';
+    // List is reversed (bottom→top), so visual ▲ moves the portion LATER in the
+    // sequence (higher index) and ▼ moves it EARLIER (lower index).
     const upBtn = document.createElement('button');
     upBtn.className = 'btn-move-portion';
     upBtn.textContent = '▲';
-    upBtn.disabled = i === 0;
-    upBtn.addEventListener('click', () => movePortion(i, -1));
+    upBtn.disabled = i === portions.length - 1;
+    upBtn.addEventListener('click', () => movePortion(i, 1));
     const downBtn = document.createElement('button');
     downBtn.className = 'btn-move-portion';
     downBtn.textContent = '▼';
-    downBtn.disabled = i === b.bgPortions.length - 1;
-    downBtn.addEventListener('click', () => movePortion(i, 1));
+    downBtn.disabled = i === 0;
+    downBtn.addEventListener('click', () => movePortion(i, -1));
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-del-portion';
     delBtn.textContent = '✕';
@@ -708,25 +841,37 @@ function renderPortions(b) {
     ctrl.appendChild(delBtn);
     row.appendChild(ctrl);
 
-    fields.querySelector('.p-file').addEventListener('input', function () {
+    fields.querySelector('.p-file').addEventListener('change', function () {
       p.file = this.value;
       schedulePortionPreviewReload(i);
     });
     fields.querySelector('.p-app').addEventListener('input', function () {
       p.appearances = Math.max(-1, parseInt(this.value) || -1);
     });
+    fields.querySelector('.p-speed').addEventListener('input', function () {
+      p.speed = parseFloat(this.value) || 0;
+    });
+    fields.querySelector('.p-trans').addEventListener('input', function () {
+      p.speedTransitionTime = Math.max(0, parseInt(this.value) || 0);
+    });
+    fields.querySelector('.p-easing').addEventListener('change', function () {
+      p.speedEasing = this.value;
+    });
+    fields.querySelector('.p-activate').addEventListener('input', function () {
+      const v = parseInt(this.value);
+      p.activateBlock = Number.isNaN(v) ? -1 : Math.max(-1, v);
+    });
 
     list.appendChild(row);
-  });
+  }
 }
 
 function schedulePortionPreviewReload(portionIdx) {
-  const key = selectedBlockIdx + ':' + portionIdx;
+  const key = String(portionIdx);
   if (portionPreviewTimers[key]) clearTimeout(portionPreviewTimers[key]);
   portionPreviewTimers[key] = setTimeout(async () => {
-    const b = getCurrentBlock();
-    if (!b) return;
-    await loadPortionPreview(b.bgPortions[portionIdx], selectedBlockIdx, portionIdx);
+    if (!portions[portionIdx]) return;
+    await loadPortionPreview(portions[portionIdx], portionIdx);
     renderAll();
   }, 300);
 }
@@ -1188,23 +1333,38 @@ function moveBlock(idx, dir) {
   setStatus(`Moved block #${idx} → #${target}`);
 }
 
+// Remap every block's releasesPortionOf (a portion index) through `mapFn`,
+// which returns the new index or -1 if the referenced portion is gone.
+// (activateBlock points at BLOCK indices, so portion reordering never affects it.)
+function remapReleasesPortionOf(mapFn) {
+  let changed = 0;
+  blocks.forEach(b => {
+    if (b.releasesPortionOf === undefined || b.releasesPortionOf < 0) return;
+    const next = mapFn(b.releasesPortionOf);
+    if (next !== b.releasesPortionOf) { b.releasesPortionOf = next; changed++; }
+  });
+  return changed;
+}
+
 function movePortion(idx, dir) {
-  const b = getCurrentBlock();
-  if (!b) return;
   const target = idx + dir;
-  if (target < 0 || target >= b.bgPortions.length) return;
-  [b.bgPortions[idx], b.bgPortions[target]] = [b.bgPortions[target], b.bgPortions[idx]];
+  if (target < 0 || target >= portions.length) return;
+  [portions[idx], portions[target]] = [portions[target], portions[idx]];
+  // Two portions swapped positions: fix any releasesPortionOf pointing at either.
+  const fixed = remapReleasesPortionOf(r => (r === idx ? target : r === target ? idx : r));
   renderAll();
-  loadPortionPreviews();
+  loadPortionPreviews().then(renderAll);
+  setStatus(`Reordered portions${fixed ? ` (auto-fixed ${fixed} releasesPortionOf)` : ''}`);
 }
 
 function removePortion(idx) {
-  const b = getCurrentBlock();
-  if (!b) return;
-  if (b.bgPortions.length <= 1) { setStatus('Cannot remove the last portion'); return; }
-  b.bgPortions.splice(idx, 1);
+  if (portions.length <= 1) { setStatus('Cannot remove the last portion'); return; }
+  portions.splice(idx, 1);
+  // Shift references: > idx slide down by 1; === idx is now dangling -> -1.
+  const fixed = remapReleasesPortionOf(r => (r === idx ? -1 : r > idx ? r - 1 : r));
   renderAll();
-  loadPortionPreviews();
+  loadPortionPreviews().then(renderAll);
+  setStatus(`Removed portion #${idx}${fixed ? ` (auto-fixed ${fixed} releasesPortionOf)` : ''}`);
 }
 
 function onBlockMetaChange() {
@@ -1220,6 +1380,11 @@ function onBlockMetaChange() {
   }
   b.startBonus = parseInt($('blockStartBonus').value) || 0;
   b.decay = parseFloat($('blockDecay').value) || 0;
+  {
+    const rpo = parseInt($('blockReleasesPortionOf').value);
+    b.releasesPortionOf = Number.isNaN(rpo) ? -1 : rpo;
+  }
+  b.preventFromStart = $('blockPreventFromStart').checked;
   renderDetail();
   renderSidebar();
 }

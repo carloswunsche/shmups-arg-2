@@ -19,6 +19,8 @@
       </div>
     </header>
 
+    <div id="validationBanner" class="hidden"></div>
+
     <main>
       <aside id="sidebar">
         <div class="sidebar-header">
@@ -46,12 +48,16 @@
               <input type="number" id="blockStartBonus" value="0" min="0">
               <label class="inline-label">Decay (per tic)</label>
               <input type="number" id="blockDecay" value="0" min="0" step="0.1">
-              <span class="hint" id="blockHint"></span>
+              <span class="hint hidden" id="blockHint"></span>
             </div>
-
-            <h3>Background Portions</h3>
-            <div id="bgPortionList"></div>
-            <button id="btnAddPortion">+ Add Portion</button>
+            <div class="field-row">
+              <label>Releases portion #</label>
+              <input type="number" id="blockReleasesPortionOf" value="-1" min="-1">
+              <span class="hint hidden">on clear, unlock that portion's loop (-1 = none)</span>
+              <label class="inline-label">Prevent from start</label>
+              <input type="checkbox" id="blockPreventFromStart">
+              <span class="hint hidden">don't auto-start; wait for a portion's activateBlock</span>
+            </div>
           </div>
 
           <div id="eventSetsContainer">
@@ -67,22 +73,22 @@
           <div id="setDetail">
             <div class="section-header">
               <h3>Selected Event Set</h3>
-              <span id="setDetailHint" class="hint"></span>
+              <span id="setDetailHint" class="hint hidden"></span>
               <div class="event-controls">
                 <button id="btnExpandAll">Expand all</button>
                 <button id="btnCollapseAll">Collapse all</button>
+                <button id="btnPasteEvent" disabled>Paste</button>
                 <button id="btnAddEvent">+ Add Event</button>
-                <button id="btnPasteEvent" disabled>Paste as new event</button>
               </div>
             </div>
             <div class="field-row">
               <label>Quota</label>
               <input type="number" id="setQuota" min="0" value="0">
-              <span class="hint">enemies remaining to clear this set</span>
+              <span class="hint hidden">enemies remaining to clear this set</span>
             </div>
 
             <div id="timelineContainer">
-              <h3>Timeline</h3>
+              <h3 class="hidden">Timeline</h3>
               <div id="timeline">
                 <div id="timelineBar"></div>
                 <div id="timelineMarkers"></div>
@@ -96,6 +102,17 @@
           </div>
         </div>
       </section>
+
+      <aside id="backgroundPanel" class="hidden">
+        <div class="section-header">
+          <h3>Background Timeline</h3>
+          <div class="event-controls">
+            <button id="btnAddPortion">+ Add Portion</button>
+          </div>
+        </div>
+        <p class="hint hidden">Scrolls bottom→top, independent of blocks. <code>appearances: -1</code> loops until a block releases it. <code>Activate</code> starts a preventFromStart block when the portion scrolls in.</p>
+        <div id="bgPortionList"></div>
+      </aside>
     </main>
 
     <footer>
@@ -112,7 +129,6 @@
   <input type="file" id="fileInput" accept=".json" style="display:none">
 
   <datalist id="entityClasses"></datalist>
-  <datalist id="tilemapFiles"></datalist>
 
   <div id="spriteModal" class="sprite-modal hidden">
     <img id="spriteModalImg" src="" alt="">
