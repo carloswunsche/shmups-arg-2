@@ -237,6 +237,7 @@ class GameplayScene {
       if (bonus > 0) this.events.emit('score.add', { amount: bonus });
     }
     this.blockSequencer.endWave();
+    this.events.emit('wave.tic', { tic: null, bonus: null });
 
     if (this.background && cleared.releasesPortionOf !== undefined && cleared.releasesPortionOf >= 0) {
       this.background.releasePortion(cleared.releasesPortionOf);
