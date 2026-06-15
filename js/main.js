@@ -42,6 +42,6 @@ function setupScenes() {
 }
 
 function startGame() {
-  sceneManager.switchTo('mainMenu');
+  sceneManager.switchTo('stage1');
   engine.start(()=>sceneManager.updateCurrent(), ()=>sceneManager.renderCurrent());
 }
