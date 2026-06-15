@@ -150,6 +150,8 @@ class GameplayScene {
         groupA: 'players', groupB: 'enemies_air',
         onCollision: (player, enemy) => {
           enemy.hp = 0;
+          if (enemy.fromWave) this.blockSequencer.addWaveKillScore(enemy.score || 0);
+          else                this.events.emit('score.add', { amount: enemy.score || 0 });
           player.addEffect('flash', { color: '#f00', duration: 2, intensity: 0.5 });
           player.addEffect('shake', { intensity: 4, duration: 6, ease: 'out' });
         }
@@ -234,6 +236,7 @@ class GameplayScene {
 
     if (cleared.kind === 'wave') {
       const bonus = this.blockSequencer.computeWaveBonus(this.tic);
+      this.events.emit('wave.cleared', { tic: this.tic - (this.blockSequencer.wave?.startTic || 0), bonus });
       if (bonus > 0) this.events.emit('score.add', { amount: bonus });
     }
     this.blockSequencer.endWave();
@@ -277,7 +280,7 @@ class GameplayScene {
     input.commitState();
 
     this.blockSequencer.fire(this.tic, this._fireCallbacks);
-    this.hud.update();
+    this.hud.update(1);
 
     // Drain pending spawns in place
     let write = 0;

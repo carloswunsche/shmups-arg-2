@@ -162,7 +162,7 @@ class BlockSequencer {
   }
 
   addWaveKillScore(amount) {
-    if (this.wave) this.wave.killScore += amount;
+    // if (this.wave) this.wave.killScore += amount;
   }
 
   // Compute the current wave's bonus value at the current tic.
@@ -170,8 +170,10 @@ class BlockSequencer {
   // caller can use the resulting value directly.
   computeWaveBonus(currentTic) {
     if (!this.wave) return 0;
+    const GRACE_TICS = 50;
     const elapsed = currentTic - this.wave.startTic;
-    const raw = this.wave.startBonus + this.wave.killScore - this.wave.decay * elapsed;
+    const decayingElapsed = Math.max(0, elapsed - GRACE_TICS);
+    const raw = this.wave.startBonus + this.wave.killScore - this.wave.decay * decayingElapsed;
     return Math.max(0, Math.round(raw));
   }
 

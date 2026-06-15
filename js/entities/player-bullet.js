@@ -6,7 +6,7 @@ class PlayerBullet extends Entity {
     this.gfxName = 'player-bullet';
     this.speed = 6;
     this.power = 1;
-    this.hitScore = 0;
+    this.hitScore = 1;
     this.setupHitbox(1, 3, 0, 0);
   }
 

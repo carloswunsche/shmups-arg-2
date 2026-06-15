@@ -8,33 +8,84 @@ class Hud {
     this.displayedScore = 0;
     this.waveTic = null;
     this.waveBonus = null;
-    this._lastScore = 0;
+
+    // Exit animation state
+    this._bonusExit = null; // { finalBonus, progress, delay, speed }
+    this._waveTicExit = null; // { finalTic, progress, delay, speed }
+    this._previousBonusExit = null; // { finalBonus, progress, delay, speed }
+
+    this.previousWaveTotalBonus = null;
+
     this._subscribe();
   }
 
   update() {
-
+    this._updateBonusExitAnimation();
+    this._updateWaveTicExitAnimation();
+    this._updatePreviousBonusExitAnimation();
   }
 
   reset() {
     this.displayedScore = 0;
     this.waveTic = null;
     this.waveBonus = null;
-    this._lastScore = 0;
-  }
-
-  _onScoreChanged() {
-    this.displayedScore = this.gameState.score
+    this.previousWaveTotalBonus = null;
+    this._bonusExit = null;
+    this._waveTicExit = null;
+    this._previousBonusExit = null;
   }
 
   _onWaveTic({ tic, bonus }) {
     this.waveTic = tic;
     this.waveBonus = bonus;
+    if (tic !== null) {
+      this._waveTicExit = null;
+    }
   }
+
+  _onWaveCleared({ tic, bonus }) {
+    this._bonusExit = { finalBonus: bonus, progress: 0, delay: 0, speed: 0.03 };
+    this._waveTicExit = { finalTic: tic, progress: 0, delay: 20, speed: 0.02 };
+    this.previousWaveTotalBonus = bonus;
+    this._previousBonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
+  }
+
+  _updateBonusExitAnimation() {
+    if (!this._bonusExit) return;
+    if (this._bonusExit.delay > 0) { this._bonusExit.delay--; return; }
+    this._bonusExit.progress += this._bonusExit.speed;
+    if (this._bonusExit.progress >= 1) {
+      this._bonusExit = null;
+    }
+  }
+
+  _updateWaveTicExitAnimation() {
+    if (!this._waveTicExit) return;
+    if (this._waveTicExit.delay > 0) { this._waveTicExit.delay--; return; }
+    this._waveTicExit.progress += this._waveTicExit.speed;
+    if (this._waveTicExit.progress >= 1) {
+      this._waveTicExit = null;
+    }
+  }
+
+  _updatePreviousBonusExitAnimation() {
+    if (!this._previousBonusExit) return;
+    if (this._previousBonusExit.delay > 0) { this._previousBonusExit.delay--; return; }
+    this._previousBonusExit.progress += this._previousBonusExit.speed;
+    if (this._previousBonusExit.progress >= 1) {
+      this._previousBonusExit = null;
+    }
+  }
+
+  // Renderer reads these:
+  get bonusExit() { return this._bonusExit; }
+  get waveTicExit() { return this._waveTicExit; }
+  get previousBonusExit() { return this._previousBonusExit; }
 
   _subscribe() {
     this.events.on('wave.tic', (data) => this._onWaveTic(data));
-    this.events.on('score.add', () => this._onScoreChanged());
+    this.events.on('wave.cleared', (data) => this._onWaveCleared(data));
+    this.events.on('score.add', () => { this.displayedScore = this.gameState.score; });
   }
 }
 
