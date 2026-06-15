@@ -63,7 +63,7 @@ class HudRenderer {
     }
   }
 
- ticsToTime(tics, digits = 2, msPerTic = 16) {
+  ticsToTime(tics, digits = 2, msPerTic = 16) {
     const totalMs = tics * msPerTic;
     const seconds = Math.floor(totalMs / 1000);
     const ms = totalMs % 1000;

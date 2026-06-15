@@ -28,7 +28,7 @@ class MainMenuScene {
     ctx.textBaseline = 'middle';
 
     ctx.font = `${8 * scale}px "PICO-8", monospace`;
-    ctx.fillText('vanilla js game engine', cw / 2, (height / 2 - 20) * scale);
+    ctx.fillText('shmups arg 2', cw / 2, (height / 2 - 20) * scale);
 
     if (Math.floor(this.tic / 30) % 2 === 0) {
       ctx.font = `${4 * scale}px "PICO-8", monospace`;

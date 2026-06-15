@@ -140,8 +140,9 @@ class GameplayScene {
         onCollision: (playerBullet, enemy) => {
           playerBullet.hp = 0;
           enemy.hp -= playerBullet.power;
-          if (enemy.fromWave) this.blockSequencer.addWaveKillScore(playerBullet.hitScore || 0);
-          else                this.events.emit('score.add', { amount: playerBullet.hitScore || 0 });
+          // If enemy is fromWave, add enemy.score to wave bonus (and optionally playerBullet.hitScore too):
+          if (enemy.fromWave) this.blockSequencer.addWaveKillScore((playerBullet.hitScore || 0) + (enemy.score || 0));
+          else                this.events.emit('score.add', { amount: enemy.score || 0 });
           this.events.emit('enemy.damaged', { enemy });
         }
       },
