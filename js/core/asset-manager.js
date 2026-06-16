@@ -119,6 +119,7 @@ class AssetManager {
 
     const portions = (!Array.isArray(data) && data.background && data.background.portions) || [];
     if (portions.length > 0) {
+      this._drawStatus('Loading backgrounds...');
       entry.background = await this._loadBackground(portions, eventsUrl);
     }
   }
