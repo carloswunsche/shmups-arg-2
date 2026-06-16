@@ -36,10 +36,14 @@ class HudRenderer {
 
   renderWaveTic(ctx, hud, font, scale, width) {
     if (hud.waveTicExit) {
+      console.log('[RENDER waveTic] exit animation, finalTic=', hud.waveTicExit.finalTic, 'progress=', hud.waveTicExit.progress, 'delay=', hud.waveTicExit.delay);
       this._renderWaveTicExit(ctx, hud, font, scale, width);
       return;
     }
-    if (hud.waveTic === null) return;
+    if (hud.waveTic === null) {
+      console.log('[RENDER waveTic] waveTic=null --> returning early');
+      return;
+    }
     const time = this.ticsToTime(hud.waveTic, 3);
     ctx.fillStyle = '#fff';
     drawText(ctx, `${time} sec`, {
@@ -91,11 +95,16 @@ class HudRenderer {
   }
 
   renderBonus(ctx, hud, font, scale, width) {
-    // if (hud.bonusExit) {
-    //   this._renderBonusExit(ctx, hud, font, scale, width);
-    //   return;
-    // }
-    if (hud.waveBonus === null || hud.waveBonus <= 0) return;
+    if (hud.bonusExit) {
+      console.log('[RENDER bonusExit] drawing animation, finalBonus=', hud.bonusExit.finalBonus, 'progress=', hud.bonusExit.progress, 'delay=', hud.bonusExit.delay);
+      this._renderBonusExit(ctx, hud, font, scale, width);
+      return;
+    }
+    if (hud.waveBonus === null || hud.waveBonus <= 0) {
+      console.log('[RENDER bonus] waveBonus=', hud.waveBonus, '--> returning early, no draw');
+      return;
+    }
+    console.log('[RENDER bonus] drawing static, waveBonus=', hud.waveBonus);
     ctx.fillStyle = '#fff';
     drawText(ctx, `${hud.waveBonus} bonus`, {
       x: 0, y: 6 * scale,

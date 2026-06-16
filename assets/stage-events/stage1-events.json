@@ -195,9 +195,10 @@
           ]
         }
       ],
-      "startBonus": 1000,
+      "startBonus": 1009,
       "decay": 1,
-      "releasesPortionOf": 3
+      "releasesPortionOf": 3,
+      "description": "Midbosses"
     },
     {
       "kind": "wave",
