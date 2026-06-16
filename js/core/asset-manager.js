@@ -18,18 +18,33 @@
 //   into an `animations` map: { [name]: [{sx, sy, sw, sh, duration}, ...] }.
 //   When no JSON is present, a single-frame "default" animation is built
 //   from the image bounds. Per-frame durations are in tics (aseprite ms / 16).
+import { drawText } from './canvas-txt.js';
 
 const DEFAULT_APPEARANCES = 1;
 const MS_PER_TIC = 16;
 const TIC_DEFAULT_DURATION = 1;
 
 class AssetManager {
-  constructor() {
+  constructor({ renderLoadedFilesOn: ctx } = {}) {
     this.graphics = { entities: {} };
     this.stages = {};
+    this.ctx = ctx || null;
+  }
+
+  _drawStatus(msg) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = ctx.canvas.width;
+    const h = ctx.canvas.height;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#bbb';
+    ctx.font = ((w / 160) * 6) + 'px monospace';
+    ctx.fillText(msg, 4 * (w / 160), h - 6 * (w / 160));
   }
 
   async loadImages(manifestUrl) {
+    this._drawStatus('Loading images...');
     const manifest = await this._fetchJson(manifestUrl);
     const baseDir = this._baseDir(manifestUrl);
     await Promise.all((manifest.entities || []).map(async entry => {
@@ -79,6 +94,7 @@ class AssetManager {
   }
 
   async loadStageManifest(manifestUrl) {
+    this._drawStatus('Loading stages...');
     const manifest = await this._fetchJson(manifestUrl);
     await Promise.all((manifest.stages || []).map(stage => this._loadStage(stage, manifestUrl)));
   }

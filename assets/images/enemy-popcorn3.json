@@ -6,7 +6,7 @@
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 9, "h": 12 },
     "sourceSize": { "w": 9, "h": 12 },
-    "duration": 100
+    "duration": 50
    },
    {
     "filename": "enemy-popcorn3 1.aseprite",
@@ -15,7 +15,7 @@
     "trimmed": false,
     "spriteSourceSize": { "x": 0, "y": 0, "w": 9, "h": 12 },
     "sourceSize": { "w": 9, "h": 12 },
-    "duration": 100
+    "duration": 50
    }
  ],
  "meta": {

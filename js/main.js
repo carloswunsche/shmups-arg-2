@@ -12,7 +12,7 @@ const input = new InputManager();
 const viewport = new Viewport(160, 120);
 const renderer = new GameplayRenderer(viewport);
 const engine = new GameLoop(60, 60);
-const assets = new AssetManager();
+const assets = new AssetManager({ renderLoadedFilesOn: viewport.ctx });
 const sceneManager = new SceneManager();
 
 // Debug stuff
@@ -27,6 +27,7 @@ bootstrap();
 function bootstrap() {
   console.clear(); // Don't remove this line
   engine.pause();
+
   assets.loadImages('./assets/images/manifest.json')
   .then(() => assets.loadStageManifest('./assets/stage-events/manifest.json'))
   .then(() => {
