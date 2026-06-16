@@ -122,7 +122,7 @@
           ]
         },
         {
-          "quota": 5,
+          "quota": 15,
           "events": [
             {
               "tic": 0,
@@ -141,7 +141,7 @@
             },
             {
               "tic": 100,
-              "_disabled": true,
+              "_collapsed": false,
               "spawn": [
                 "Popcorn4"
               ],

@@ -140,9 +140,7 @@ class GameplayScene {
         onCollision: (playerBullet, enemy) => {
           playerBullet.hp = 0;
           enemy.hp -= playerBullet.power;
-          // If enemy is fromWave, add enemy.score to wave bonus (and optionally playerBullet.hitScore too):
-          if (enemy.fromWave) this.blockSequencer.addWaveKillScore((playerBullet.hitScore || 0) + (enemy.score || 0));
-          else                this.events.emit('score.add', { amount: enemy.score || 0 });
+          this.events.emit('score.add', { amount: (enemy.score || 0) + (playerBullet.hitScore || 0) });
           this.events.emit('enemy.damaged', { enemy });
         }
       },
@@ -150,8 +148,7 @@ class GameplayScene {
         groupA: 'players', groupB: 'enemies_air',
         onCollision: (player, enemy) => {
           enemy.hp = 0;
-          if (enemy.fromWave) this.blockSequencer.addWaveKillScore(enemy.score || 0);
-          else                this.events.emit('score.add', { amount: enemy.score || 0 });
+          this.events.emit('score.add', { amount: enemy.score || 0 });
           player.addEffect('flash', { color: '#f00', duration: 2, intensity: 0.5 });
           player.addEffect('shake', { intensity: 4, duration: 6, ease: 'out' });
         }

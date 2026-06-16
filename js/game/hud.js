@@ -16,7 +16,8 @@ class Hud {
 
     this.previousWaveTotalBonus = null;
 
-    this._subscribe();
+    // During constructor, this one gets executed
+    this._subscribeToEvents();
   }
 
   update() {
@@ -25,7 +26,7 @@ class Hud {
     this._updatePreviousBonusExitAnimation();
   }
 
-  reset() {
+  reset() { // I don't know if this one ever runs ?
     this.displayedScore = 0;
     this.waveTic = null;
     this.waveBonus = null;
@@ -36,18 +37,25 @@ class Hud {
   }
 
   _onWaveTic({ tic, bonus }) {
+    const wasPositive = this.waveBonus > 0;
     this.waveTic = tic;
     this.waveBonus = bonus;
     if (tic !== null) {
       this._waveTicExit = null;
+      this._bonusExit = null;
+    }
+    if (bonus === 0 && wasPositive) {
+      this._bonusExit = { finalBonus: 0, progress: 0, delay: 60, speed: 0.03 };
     }
   }
 
   _onWaveCleared({ tic, bonus }) {
-    this._bonusExit = { finalBonus: bonus, progress: 0, delay: 0, speed: 0.03 };
-    this._waveTicExit = { finalTic: tic, progress: 0, delay: 20, speed: 0.02 };
-    this.previousWaveTotalBonus = bonus;
-    this._previousBonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
+    this._waveTicExit = { finalTic: tic, progress: 0, delay: 60, speed: 0.03 };
+    if (bonus > 0) {
+      this._bonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
+      this.previousWaveTotalBonus = bonus;
+      this._previousBonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
+    }
   }
 
   _updateBonusExitAnimation() {
@@ -82,7 +90,7 @@ class Hud {
   get waveTicExit() { return this._waveTicExit; }
   get previousBonusExit() { return this._previousBonusExit; }
 
-  _subscribe() {
+  _subscribeToEvents() {
     this.events.on('wave.tic', (data) => this._onWaveTic(data));
     this.events.on('wave.cleared', (data) => this._onWaveCleared(data));
     this.events.on('score.add', () => { this.displayedScore = this.gameState.score; });
