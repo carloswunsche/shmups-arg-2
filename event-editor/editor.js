@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('btnShiftTicsDown').addEventListener('click', () => shiftTics(-1));
   $('btnShiftTicsUp').addEventListener('click', () => shiftTics(1));
+  $('btnAutoQuota').addEventListener('click', autoSetQuota);
 
   $('spriteModal').addEventListener('click', function () { this.classList.add('hidden'); });
 
@@ -1532,6 +1533,20 @@ function duplicateEvent(evIdx) {
   s.events.splice(evIdx + 1, 0, copy);
   renderSetDetail();
   setStatus('Duplicated event #' + (evIdx + 1));
+}
+
+function autoSetQuota() {
+  const s = getCurrentEventSet();
+  if (!s) return;
+  let total = 0;
+  s.events.forEach(ev => {
+    if (ev._disabled || !ev._spawnEnabled) return;
+    total += ev._spawnCount || 1;
+  });
+  s.quota = total;
+  $('setQuota').value = total;
+  renderEventSetList();
+  setStatus(`Auto-set quota to ${total}`);
 }
 
 function shiftTics(multiplier) {
