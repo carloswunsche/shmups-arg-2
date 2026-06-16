@@ -5,7 +5,6 @@ class Viewport {
     this.canvas = document.querySelector('canvas');
     if (!this.canvas) throw new Error('Viewport: no <canvas> element found');
     this.ctx = this.canvas.getContext('2d');
-    canvas.style.background = '#222';
   }
 
   init() {

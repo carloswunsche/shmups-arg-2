@@ -18,7 +18,6 @@
 //   into an `animations` map: { [name]: [{sx, sy, sw, sh, duration}, ...] }.
 //   When no JSON is present, a single-frame "default" animation is built
 //   from the image bounds. Per-frame durations are in tics (aseprite ms / 16).
-import { drawText } from './canvas-txt.js';
 
 const DEFAULT_APPEARANCES = 1;
 const MS_PER_TIC = 16;
@@ -40,7 +39,9 @@ class AssetManager {
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#bbb';
     ctx.font = ((w / 160) * 6) + 'px monospace';
-    ctx.fillText(msg, 4 * (w / 160), h - 6 * (w / 160));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(msg, w / 2, h / 2);
   }
 
   async loadImages(manifestUrl) {
