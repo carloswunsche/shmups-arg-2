@@ -37,25 +37,20 @@ class Hud {
   }
 
   _onWaveTic({ tic, bonus }) {
-    console.log('[HUD _onWaveTic] tic=', tic, 'bonus=', bonus, 'waveBonus was=', this.waveBonus);
     const wasPositive = this.waveBonus > 0;
     this.waveTic = tic;
     this.waveBonus = bonus;
     if (tic !== null) {
-      console.log('[HUD _onWaveTic] tic !== null, clearing _waveTicExit and _bonusExit');
       this._waveTicExit = null;
     }
     if (bonus === 0 && wasPositive) {
-      console.log('[HUD _onWaveTic] bonus hit 0, CREATING _bonusExit with finalBonus=0');
       this._bonusExit = { finalBonus: 0, progress: 0, delay: 60, speed: 0.03 };
     }
   }
 
   _onWaveCleared({ tic, bonus }) {
-    console.log('[HUD _onWaveCleared] tic=', tic, 'bonus=', bonus);
     this._waveTicExit = { finalTic: tic, progress: 0, delay: 60, speed: 0.03 };
     if (bonus > 0) {
-      console.log('[HUD _onWaveCleared] CREATING _bonusExit with finalBonus=', bonus);
       this._bonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
       this.previousWaveTotalBonus = bonus;
       this._previousBonusExit = { finalBonus: bonus, progress: 0, delay: 60, speed: 0.03 };
@@ -65,14 +60,11 @@ class Hud {
   _updateBonusExitAnimation() {
     if (!this._bonusExit) return;
     if (this._bonusExit.delay > 0) {
-      console.log('[HUD _updateBonusExit] delay=', this._bonusExit.delay, '-->', this._bonusExit.delay - 1);
       this._bonusExit.delay--;
       return;
     }
-    console.log('[HUD _updateBonusExit] progress=', this._bonusExit.progress, '-->', this._bonusExit.progress + this._bonusExit.speed);
     this._bonusExit.progress += this._bonusExit.speed;
     if (this._bonusExit.progress >= 1) {
-      console.log('[HUD _updateBonusExit] DONE, clearing');
       this._bonusExit = null;
     }
   }
@@ -80,14 +72,11 @@ class Hud {
   _updateWaveTicExitAnimation() {
     if (!this._waveTicExit) return;
     if (this._waveTicExit.delay > 0) {
-      console.log('[HUD _updateWaveTicExit] delay=', this._waveTicExit.delay, '-->', this._waveTicExit.delay - 1);
       this._waveTicExit.delay--;
       return;
     }
-    console.log('[HUD _updateWaveTicExit] progress=', this._waveTicExit.progress, '-->', this._waveTicExit.progress + this._waveTicExit.speed);
     this._waveTicExit.progress += this._waveTicExit.speed;
     if (this._waveTicExit.progress >= 1) {
-      console.log('[HUD _updateWaveTicExit] DONE, clearing');
       this._waveTicExit = null;
     }
   }

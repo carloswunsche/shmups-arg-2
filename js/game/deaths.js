@@ -94,8 +94,5 @@ const registry = {
 };
 
 export function getDeath(name) {
-  if (name && !registry[name]) {
-    console.warn(`[deaths] unknown death type '${name}', falling back to 'popcorn'`);
-  }
   return registry[name] || registry.popcorn;
 }

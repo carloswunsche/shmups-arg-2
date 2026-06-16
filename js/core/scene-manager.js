@@ -26,37 +26,30 @@ class SceneManager {
     this.current = alias;
   }
 
-  nextScene() {
+  nextScene() {this.navigateScene('next')}
+
+  previousScene() {this.navigateScene('previous')}
+
+  navigateScene(direction){
     const lastScene = Object.keys(this.scenes).length - 1;
     for (let index = 0; index < lastScene; index++) {
       if (this.current === Object.values(this.scenes)[index]) {
-        index++; // Move up
-        if (index > lastScene) index = 0; // Wrap around 
-        this.switchTo(index);
+        if (direction === 'next') {
+          index++; // Move to next one
+          if (index > lastScene) index = 0; // Wrap around if necessary
+        } else {
+          index--; // Move to previous one
+          if (index < 0) index = lastScene; // Wrap around if necessary
+        }
+        this.switchTo(index); // Make the switch
         return;
       };
     }
   }
 
-  previousScene() {
-    const lastScene = Object.keys(this.scenes).length - 1;
-    for (let index = 0; index < lastScene; index++) {
-      if (this.current === Object.values(this.scenes)[index]) {
-        index--; // Move down
-        if (index < 0) index = lastScene; // Wrap around 
-        this.switchTo(index);
-        return;
-      };
-    }
-  }
+  updateCurrent() {if (this.current) this.current.update()}
 
-  updateCurrent() {
-    if (this.current) this.current.update();
-  }
-
-  renderCurrent() {
-    if (this.current) this.current.render();
-  }
+  renderCurrent() {if (this.current) this.current.render()}
 }
 
 export default SceneManager;

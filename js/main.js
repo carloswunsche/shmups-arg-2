@@ -25,7 +25,7 @@ viewport.init();
 bootstrap();
 
 function bootstrap() {
-  console.clear();
+  console.clear(); // Don't remove this line
   engine.pause();
   assets.loadImages('./assets/images/manifest.json')
   .then(() => assets.loadStageManifest('./assets/stage-events/manifest.json'))
@@ -33,7 +33,7 @@ function bootstrap() {
     setupScenes();
     startGame();
   })
-  .catch(err => console.error(err));
+  .catch(err => {});
 }
 
 function setupScenes() {

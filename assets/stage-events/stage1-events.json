@@ -1,5 +1,5 @@
 {
-  "_testFromIdx": 0,
+  "_testFromIdx": 3,
   "background": {
     "portions": [
       {
@@ -204,15 +204,119 @@
       "kind": "wave",
       "eventSets": [
         {
-          "quota": 5,
+          "quota": 10,
           "events": [
             {
               "tic": 0,
               "spawn": [
-                "Brick1"
+                "Popcorn2",
+                {
+                  "yCenter": 25,
+                  "speed": 0.9,
+                  "amplitude": 6,
+                  "phase": 90
+                }
               ],
               "spawnCount": 5,
-              "spawnInterval": 40
+              "spawnInterval": 25
+            },
+            {
+              "tic": 0,
+              "spawn": [
+                "Popcorn2",
+                {
+                  "yCenter": 45,
+                  "speed": 0.9,
+                  "amplitude": 6,
+                  "mirror": true,
+                  "phase": 45
+                }
+              ],
+              "spawnCount": 5,
+              "spawnInterval": 25
+            },
+            {
+              "tic": 80,
+              "broadcast": "shotSpread"
+            }
+          ]
+        },
+        {
+          "quota": 12,
+          "events": [
+            {
+              "tic": 50,
+              "spawn": [
+                "Brick1",
+                {
+                  "x": [
+                    60,
+                    80,
+                    100
+                  ]
+                }
+              ],
+              "spawnCount": 3
+            },
+            {
+              "tic": 80,
+              "spawn": [
+                "Popcorn1",
+                {
+                  "speed": 0.5,
+                  "nextShotEnable": true
+                }
+              ]
+            },
+            {
+              "tic": 150,
+              "spawn": [
+                "Brick1",
+                {
+                  "x": [
+                    100,
+                    120,
+                    140
+                  ]
+                }
+              ],
+              "spawnCount": 3
+            },
+            {
+              "tic": 180,
+              "spawn": [
+                "Popcorn1",
+                {
+                  "speed": 0.5,
+                  "x": 120,
+                  "nextShotEnable": true
+                }
+              ]
+            },
+            {
+              "tic": 250,
+              "spawn": [
+                "Brick1",
+                {
+                  "x": [
+                    20,
+                    40,
+                    60
+                  ]
+                }
+              ],
+              "spawnCount": 3
+            },
+            {
+              "tic": 270,
+              "spawn": [
+                "Popcorn1",
+                {
+                  "speed": 0.5,
+                  "x": 40,
+                  "nextShotEnable": true
+                }
+              ]
             }
           ]
         }

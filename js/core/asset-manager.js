@@ -96,15 +96,59 @@ class AssetManager {
     const eventsUrl = this._resolveAssetUrl(stage.events, manifestUrl);
     const data = await this._fetchJson(eventsUrl);
     const blocks = Array.isArray(data) ? data : data.events;
-    if (!Array.isArray(blocks)) {
-      throw new Error(`[assets] events JSON has invalid format: ${eventsUrl}`);
-    }
+    this._validateStageData(data, blocks, eventsUrl);
     entry.events = blocks;
     entry.testFromIdx = Array.isArray(data) ? undefined : data._testFromIdx;
 
     const portions = (!Array.isArray(data) && data.background && data.background.portions) || [];
     if (portions.length > 0) {
       entry.background = await this._loadBackground(portions, eventsUrl);
+    }
+  }
+
+  // Validate the structure of a parsed events JSON. Throws on the first
+  // problem found. Caller passes both the raw data (to inspect the
+  // alternate array form) and the resolved blocks array.
+  _validateStageData(data, blocks, eventsUrl) {
+    if (!Array.isArray(blocks)) {
+      throw new Error(`[assets] events JSON has invalid format: ${eventsUrl}`);
+    }
+    blocks.forEach((block, bi) => {
+      (block.eventSets || []).forEach((es, ei) => {
+        this._validateEventSetQuota(es, `${eventsUrl} block[${bi}] eventSet[${ei}]`);
+        (es.events || []).forEach((ev, ki) => {
+          this._validateSpawnEvent(ev, `${eventsUrl} block[${bi}] eventSet[${ei}] event[${ki}]`);
+        });
+      });
+    });
+  }
+
+  // Every event set must carry an explicit `quota`: an integer >= 0
+  // representing the number of enemies the player must dispatch before
+  // the set is considered cleared.
+  _validateEventSetQuota(es, where) {
+    const q = es.quota;
+    if (q === undefined) {
+      throw new Error(`[assets] ${where}: missing required field 'quota'`);
+    }
+    if (typeof q !== 'number' || !Number.isInteger(q) || q < 0) {
+      throw new Error(
+        `[assets] ${where}: invalid quota: ${q} (must be an integer >= 0)`
+      );
+    }
+  }
+
+  // A `spawn` event must, if it specifies `spawnCount`, be an integer >= 1.
+  // Missing `spawnCount` defaults to 1 (a single spawn). Disabled events
+  // are not checked, so authors can stage partial edits.
+  _validateSpawnEvent(ev, where) {
+    if (ev._disabled || !ev.spawn) return;
+    if (ev.spawnCount === undefined) return;
+    const n = ev.spawnCount;
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) {
+      throw new Error(
+        `[assets] ${where}: invalid spawnCount: ${n} (must be an integer >= 1)`
+      );
     }
   }
 

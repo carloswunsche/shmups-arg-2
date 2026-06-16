@@ -1,23 +1,33 @@
 // BlockSequencer plays back per-block timed events. A block is a list of
-// bgPortions (visual) and event sets (gameplay). Wave blocks award a
-// bonus on clear; waveless blocks don't.
+// event sets (gameplay) linked to a separate, top-level list of
+// background portions (visual). Wave blocks award a bonus on clear;
+// waveless blocks don't.
 //
 // Schema:
+//   stage (JSON root):
+//     background:
+//       portions:  [{ file, appearances, speed?, speedTransitionTime?, speedEasing?, activateBlock? }, ...]
+//         appearances: how many times the portion scrolls before the cursor advances.
+//                      -1 = loop forever until a wave block's releasesPortionOf unlocks it.
+//         activateBlock: index of the block to start when this portion's first row
+//                        enters the viewport (only takes effect if that block is
+//                        preventFromStart).
+//     events:  [block, ...]   (see below)
+//
 //   block:
 //     kind:        'wave' | 'waveless'
 //     startBonus?: number  (only for kind: 'wave')
 //     decay?:      number  (only for kind: 'wave'; points/tic)
-//     releasesPortionOf?: number  (on clear, flip block N's looping (-1) portion to 1 so the
-//                                   background can scroll past it; -1 = releases nothing)
-//     preventFromStart?: boolean   (block does NOT auto-start when the previous block clears;
-//                                   it waits for a background portion whose activateBlock points
-//                                   at it to scroll into view — used for wind-down/resting sections)
-//     bgPortions:   [{ file, appearances, speed?, speedTransitionTime?, speedEasing?, activateBlock? }, ...]
-//        appearances: how many times the portion scrolls before the cursor advances.
-//                     -1 = loop forever until a wave block's releasesPortionOf unlocks it.
-//        activateBlock: when this portion's first row enters the viewport, start block N
-//                       (only has an effect if block N is preventFromStart).
+//     releasesPortionOf?: number  index into background.portions. On clear, that
+//                                   portion's `appearances` is flipped from -1 to 1
+//                                   so the background can scroll past it. -1 = releases
+//                                   nothing.
+//     preventFromStart?: boolean   block does NOT auto-start when the previous
+//                                   block clears; it waits for a background portion
+//                                   whose activateBlock points at it to scroll into
+//                                   view — used for wind-down/resting sections.
 //     eventSets:    [{ quota, events: [...] }, ...]
+//       quota:      integer >= 0 (required; validated at JSON load)
 //   event:
 //     tic:         number (mandatory; relative to the event set's start tic)
 //     spawn:       [className, params?]   (calls callbacks.spawn)
@@ -54,26 +64,8 @@ class BlockSequencer {
         (es.events || []).forEach((ev, k) => {
           ev._id = `${bi}-${ei}-${k}`;
         });
-        // Quota is taken from the explicit `quota` field on the event
-        // set. If absent, the engine can still derive it from spawn
-        // events.
-        if (es.quota === undefined) {
-          es.quota = this._computeQuota(es);
-        }
       });
     });
-  }
-
-  // Count the number of enemies that will be spawned by this event set's
-  // events. Reads `spawn` events with `spawnCount` and `spawnInterval`
-  // for multi-spawn groups.
-  _computeQuota(es) {
-    let total = 0;
-    for (const ev of (es.events || [])) {
-      if (ev._disabled || !ev.spawn) continue;
-      total += ev.spawnCount || 1;
-    }
-    return total;
   }
 
   // Move to a specific block index. The caller passes the engine's

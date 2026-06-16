@@ -30,11 +30,7 @@ class EventBus {
     // Snapshot so listeners can safely call on/off during emit
     const snapshot = list.slice();
     for (const cb of snapshot) {
-      try {
-        cb(data);
-      } catch (err) {
-        console.error(`[event-bus] listener for '${event}' threw:`, err);
-      }
+      cb(data);
     }
   }
 

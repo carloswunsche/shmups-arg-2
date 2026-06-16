@@ -34,9 +34,7 @@ class Viewport {
     this.canvas.height = this.scale * this.height;
   }
 
-  setPixelatedLook() {
-    this.ctx.imageSmoothingEnabled = false;
-  }
+  setPixelatedLook() {this.ctx.imageSmoothingEnabled = false}
 }
 
 export default Viewport;

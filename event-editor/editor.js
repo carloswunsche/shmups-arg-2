@@ -49,6 +49,76 @@ let portionPreviewTimers = {};
 const BACKUP_KEY = 'editor_backup_json';
 const BACKUP_TIMESTAMP_KEY = 'editor_backup_timestamp';
 const BACKUP_FILENAME_KEY = 'editor_backup_filename';
+const SELECTED_BLOCK_KEY = 'editor_selected_block_idx';
+const SELECTED_SET_KEY = 'editor_selected_event_set_idx';
+const BG_SCROLL_KEY = 'editor_bg_scroll_top';
+const COLLAPSED_KEY = 'editor_collapsed_states';
+
+function saveEditorState() {
+  try {
+    localStorage.setItem(SELECTED_BLOCK_KEY, String(selectedBlockIdx));
+    localStorage.setItem(SELECTED_SET_KEY, String(selectedEventSetIdx));
+  } catch (err) { /* ignore */ }
+}
+
+// Call after data is loaded to restore the previously selected block/set.
+function restoreSelection() {
+  const savedBlock = parseInt(localStorage.getItem(SELECTED_BLOCK_KEY));
+  const savedSet = parseInt(localStorage.getItem(SELECTED_SET_KEY));
+  if (isNaN(savedBlock) || savedBlock < 0 || savedBlock >= blocks.length) return;
+  selectedBlockIdx = savedBlock;
+  const b = blocks[selectedBlockIdx];
+  if (!isNaN(savedSet) && savedSet >= 0 && savedSet < (b.eventSets?.length || 0)) {
+    selectedEventSetIdx = savedSet;
+  } else {
+    selectedEventSetIdx = b.eventSets.length > 0 ? 0 : -1;
+  }
+}
+
+function restoreBackgroundScroll() {
+  const saved = localStorage.getItem(BG_SCROLL_KEY);
+  if (saved !== null) {
+    const panel = $('backgroundPanel');
+    if (panel) panel.scrollTop = parseInt(saved) || 0;
+  }
+}
+
+// Save every event's _collapsed state to localStorage so it survives
+// reloads even when the JSON file hasn't been saved.
+function saveCollapsedStates() {
+  const states = {};
+  blocks.forEach((b, bi) => {
+    (b.eventSets || []).forEach((es, ei) => {
+      (es.events || []).forEach((ev, vi) => {
+        const key = `${bi}-${ei}-${vi}`;
+        // Only store non-default values to keep the blob small
+        if (ev._collapsed === false) states[key] = false;
+      });
+    });
+  });
+  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(states)); }
+  catch (err) { /* ignore */ }
+}
+
+// Restore _collapsed states saved in localStorage. Must be called after
+// blocks are set up but before the first render.
+function restoreCollapsedStates() {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    if (!raw) return;
+    const states = JSON.parse(raw);
+    blocks.forEach((b, bi) => {
+      (b.eventSets || []).forEach((es, ei) => {
+        (es.events || []).forEach((ev, vi) => {
+          const key = `${bi}-${ei}-${vi}`;
+          if (states.hasOwnProperty(key)) {
+            ev._collapsed = states[key];
+          }
+        });
+      });
+    });
+  } catch (err) { /* ignore */ }
+}
 
 function backup() {
   if (blocks.length === 0) return false;
@@ -112,6 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   $('btnRestore').addEventListener('click', restoreFromBackup);
+  $('backgroundPanel').addEventListener('scroll', () => {
+    try { localStorage.setItem(BG_SCROLL_KEY, String($('backgroundPanel').scrollTop)); }
+    catch (err) { /* ignore */ }
+  });
   $('btnAddBlock').addEventListener('click', addBlock);
   $('btnAddPortion').addEventListener('click', () => {
     portions.push(makeDefaultPortion());
@@ -141,6 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
     s.quota = Math.max(0, parseInt($('setQuota').value) || 0);
     renderEventSetList();
   });
+
+  $('btnShiftTicsDown').addEventListener('click', () => shiftTics(-1));
+  $('btnShiftTicsUp').addEventListener('click', () => shiftTics(1));
 
   $('spriteModal').addEventListener('click', function () { this.classList.add('hidden'); });
 
@@ -293,6 +370,8 @@ function loadData(data, name) {
   portions = normalizePortions(data);
   selectedBlockIdx = blocks.length > 0 ? 0 : -1;
   selectedEventSetIdx = (selectedBlockIdx >= 0 && blocks[0].eventSets.length > 0) ? 0 : -1;
+  restoreSelection();
+  restoreCollapsedStates();
   $('testFromIdx').value = data._testFromIdx !== undefined ? data._testFromIdx : 0;
   fileLabel.textContent = name;
   setStatus(`Loaded ${blocks.length} block(s), ${portions.length} portion(s)`);
@@ -606,6 +685,9 @@ function renderAll() {
   renderSidebar();
   renderBackgroundPanel();
   renderDetail();
+  saveEditorState();
+  saveCollapsedStates();
+  restoreBackgroundScroll();
 }
 
 // Find preventFromStart blocks that nothing can ever start. In the hybrid
@@ -1450,6 +1532,19 @@ function duplicateEvent(evIdx) {
   s.events.splice(evIdx + 1, 0, copy);
   renderSetDetail();
   setStatus('Duplicated event #' + (evIdx + 1));
+}
+
+function shiftTics(multiplier) {
+  const s = getCurrentEventSet();
+  if (!s || s.events.length === 0) return;
+  const amount = parseInt($('ticsShiftAmount').value) || 10;
+  const delta = amount * multiplier;
+  s.events.forEach(ev => {
+    if (ev._disabled) return;
+    ev.tic = Math.max(0, (ev.tic || 0) + delta);
+  });
+  renderSetDetail();
+  setStatus(`Shifted ${s.events.length} event tics by ${delta > 0 ? '+' : ''}${delta}`);
 }
 
 function moveEvent(evIdx, delta) {

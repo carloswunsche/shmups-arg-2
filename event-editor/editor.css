@@ -115,7 +115,7 @@ aside {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -1473,6 +1473,24 @@ footer {
 #setDetailHint { margin-left: 8px; }
 
 #setQuota { width: 56px; }
+.shift-tics { margin-top: 4px; }
+.shift-tics input { width: 56px; }
+.shift-tics button {
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 11px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.shift-tics button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 #eventsContainer { margin-top: 12px; }
 
