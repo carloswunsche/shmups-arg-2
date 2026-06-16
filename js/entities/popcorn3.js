@@ -7,7 +7,7 @@ class Popcorn3 extends Enemy {
     super();
     this.gfxName = 'enemy-popcorn3';
     this.death = 'bomb';
-    this.setupHitbox(3, 3, 0, 0);
+    this.setupHitbox(3, 3, 0, 2);
   }
 
   init(params, vw, vh) {

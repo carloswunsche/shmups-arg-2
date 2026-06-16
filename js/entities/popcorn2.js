@@ -14,6 +14,7 @@ class Popcorn2 extends Enemy {
     this.hp = 2;
     this._anticipationArmed = false;
     this.speed = params.speed ?? 0.8;
+    this.bulletSpeed = 1.5;
     if (params.mirror) {
       this.x = vw + this.width;
       this.speedX = -this.speed;
@@ -64,7 +65,7 @@ class Popcorn2 extends Enemy {
       { angleOffset: -2 },
       { angleOffset:  2 },
     ].map(s => ['EnemyBullet', {
-      x: this.x, y: this.y+3, angle: baseAngle + s.angleOffset, speed: 1.5,
+      x: this.x, y: this.y+3, angle: baseAngle + s.angleOffset, speed: this.bulletSpeed,
     }]);
   }
 }

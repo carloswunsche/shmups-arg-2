@@ -1,5 +1,5 @@
 {
-  "_testFromIdx": 3,
+  "_testFromIdx": 0,
   "background": {
     "portions": [
       {
@@ -25,24 +25,21 @@
       {
         "file": "stage1-bgPortion5.json",
         "appearances": 1,
-        "speed": 2
+        "speed": 1.5,
+        "speedTransitionTime": 100
       },
       {
         "file": "stage1-bgPortion9.json",
         "appearances": 1,
-        "speed": 2,
+        "speed": 1,
+        "speedTransitionTime": 100,
         "activateBlock": 3
       },
       {
         "file": "stage1-bgPortion10.json",
         "appearances": -1,
-        "speed": 2
-      },
-      {
-        "file": "stage1-bgPortion10.json",
-        "appearances": -1,
         "speed": 0.5,
-        "speedTransitionTime": 500
+        "speedTransitionTime": 400
       }
     ]
   },
@@ -70,7 +67,7 @@
                   ],
                   "hp": 1,
                   "dontShoot": true,
-                  "speed": 1.5
+                  "speed": 1
                 }
               ],
               "spawnCount": 3
@@ -92,7 +89,7 @@
                   ],
                   "hp": 1,
                   "dontShoot": true,
-                  "speed": 1.5
+                  "speed": 1
                 }
               ],
               "spawnCount": 3
@@ -114,7 +111,7 @@
                   ],
                   "hp": 1,
                   "dontShoot": true,
-                  "speed": 1.5
+                  "speed": 1
                 }
               ],
               "spawnCount": 3
@@ -122,7 +119,7 @@
           ]
         },
         {
-          "quota": 15,
+          "quota": 5,
           "events": [
             {
               "tic": 0,
@@ -130,26 +127,42 @@
                 "Popcorn2",
                 {
                   "yCenter": 35,
-                  "speed": 1,
+                  "speed": 1.2,
                   "amplitude": 6,
                   "phase": 90,
-                  "mirror": true
+                  "mirror": true,
+                  "bulletSpeed": 1.2
                 }
               ],
               "spawnCount": 5,
-              "spawnInterval": 25
+              "spawnInterval": 17
             },
             {
               "tic": 100,
-              "_collapsed": false,
+              "broadcast": "shotSpread"
+            }
+          ]
+        },
+        {
+          "quota": 5,
+          "events": [
+            {
+              "tic": 0,
               "spawn": [
-                "Popcorn4"
+                "Popcorn2",
+                {
+                  "yCenter": 35,
+                  "speed": 1.2,
+                  "amplitude": 6,
+                  "phase": 90,
+                  "bulletSpeed": 1.2
+                }
               ],
-              "spawnCount": 10,
-              "spawnInterval": 15
+              "spawnCount": 5,
+              "spawnInterval": 17
             },
             {
-              "tic": 170,
+              "tic": 100,
               "broadcast": "shotSpread"
             }
           ]
@@ -158,7 +171,7 @@
       "startBonus": 1000,
       "decay": 1,
       "releasesPortionOf": 0,
-      "description": "Start of level!"
+      "description": "-- START"
     },
     {
       "kind": "wave",
@@ -176,7 +189,8 @@
         }
       ],
       "startBonus": 1000,
-      "decay": 1
+      "decay": 1,
+      "description": "Bomb"
     },
     {
       "kind": "wave",
@@ -198,7 +212,7 @@
       "startBonus": 1009,
       "decay": 1,
       "releasesPortionOf": 3,
-      "description": "Midbosses"
+      "description": "-- MIDBOSS"
     },
     {
       "kind": "wave",
@@ -245,7 +259,7 @@
           "quota": 12,
           "events": [
             {
-              "tic": 50,
+              "tic": 20,
               "spawn": [
                 "Brick1",
                 {
@@ -259,7 +273,7 @@
               "spawnCount": 3
             },
             {
-              "tic": 80,
+              "tic": 50,
               "spawn": [
                 "Popcorn1",
                 {
@@ -269,7 +283,7 @@
               ]
             },
             {
-              "tic": 150,
+              "tic": 120,
               "spawn": [
                 "Brick1",
                 {
@@ -283,7 +297,7 @@
               "spawnCount": 3
             },
             {
-              "tic": 180,
+              "tic": 150,
               "spawn": [
                 "Popcorn1",
                 {
@@ -294,7 +308,7 @@
               ]
             },
             {
-              "tic": 250,
+              "tic": 220,
               "spawn": [
                 "Brick1",
                 {
@@ -308,7 +322,7 @@
               "spawnCount": 3
             },
             {
-              "tic": 270,
+              "tic": 240,
               "spawn": [
                 "Popcorn1",
                 {

@@ -898,6 +898,8 @@ aside {
   width: 90px;
 }
 
+.section-body .field-row select.ev-spawn-class { width: 120px; }
+
 .section-body .checkbox-row {
   display: flex;
   align-items: center;

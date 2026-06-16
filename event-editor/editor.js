@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('spriteModal').addEventListener('click', function () { this.classList.add('hidden'); });
 
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveFile(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveFile(); }
   });
 
   document.addEventListener('dragover', e => { e.preventDefault(); });
@@ -596,7 +596,6 @@ function serializeBlock(b) {
 function serializeEvent(e) {
   const out = {};
   out.tic = e.tic;
-  if (e._collapsed === false) out._collapsed = false;
   if (e._disabled) out._disabled = true;
 
   if (e._spawnEnabled && e._spawnClass) {
@@ -1120,6 +1119,8 @@ function createEventCard(s, evIdx) {
   card.dataset.evIdx = evIdx;
 
   const summary = buildEventSummary(e);
+  const spawnClassOpts = ENTITY_CLASSES.includes(e._spawnClass) ? ENTITY_CLASSES : [e._spawnClass, ...ENTITY_CLASSES];
+  const spawnClassOptionsHtml = spawnClassOpts.map(c => `<option value="${escapeHtml(c)}" ${c === e._spawnClass ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
 
   card.innerHTML = `
     <div class="event-header">
@@ -1147,7 +1148,7 @@ function createEventCard(s, evIdx) {
         <div class="section-body ${e._spawnEnabled ? '' : 'hidden'}">
           <div class="field-row">
             <label>Class</label>
-            <input type="text" class="ev-spawn-class" value="${escapeHtml(e._spawnClass)}" list="entityClasses">
+            <select class="ev-spawn-class">${spawnClassOptionsHtml}</select>
             <label>Count</label>
             <button type="button" class="ev-spawn-count-minus">−</button>
             <input type="number" class="ev-spawn-count" value="${e._spawnCount}" min="1" max="99">
@@ -1219,6 +1220,7 @@ function createEventCard(s, evIdx) {
     if (e.target.closest('.ev-toggle-event')) return;
     card.classList.toggle('collapsed');
     s.events[evIdx]._collapsed = card.classList.contains('collapsed');
+    saveCollapsedStates();
   });
 
   card.querySelector('.btn-del-event').addEventListener('click', () => removeEvent(evIdx));
@@ -1273,7 +1275,7 @@ function createEventCard(s, evIdx) {
   });
 
   const sc = card.querySelector('.ev-spawn-class');
-  if (sc) sc.addEventListener('input', function () {
+  if (sc) sc.addEventListener('change', function () {
     s.events[evIdx]._spawnClass = this.value;
     updateSummary(card, s.events[evIdx]);
   });
@@ -1513,6 +1515,7 @@ function setAllCards(collapsed) {
     c.classList.toggle('collapsed', collapsed);
     if (s.events[idx]) s.events[idx]._collapsed = collapsed;
   });
+  saveCollapsedStates();
 }
 
 function removeEvent(evIdx) {
