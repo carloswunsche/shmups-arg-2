@@ -1,4 +1,5 @@
 import Debug from "../core/debug.js";
+import { drawText } from './canvas-txt.js';
 
 const SHADOW_LAYERS = new Set(['players', 'enemies_air']);
 
@@ -12,14 +13,14 @@ class GameplayRenderer {
   get height() { return this.viewport.height; }
   get scale() { return this.viewport.scale; }
 
-  render({ background, entities, graphics, hud, hudRenderer, debug }) {
+  render({ background, entities, graphics, debug }) {
     const ctx = this.viewport.ctx;
     ctx.clearRect(0, 0, this.viewport.canvas.width, this.viewport.canvas.height);
 
     if (background) this.renderBackground(ctx, background.getRenderData());
     if (entities) this.renderEntities(entities, graphics);
     if (this.showHitboxes && entities) this.renderHitboxes(entities);
-    if (hud && hudRenderer) hudRenderer.render(ctx, hud);
+    if (entities) this.renderHud(entities.get('hud'), ctx);
     if (debug) Debug.render(ctx, debug, this.viewport.canvas.width, this.scale);
   }
 
@@ -96,7 +97,7 @@ class GameplayRenderer {
     ctx.rotate(entity.rotation * Math.PI / 180);
 
     // Transform-affecting effects (currently just shake)
-    const shake = entity.effects.find(e => e.type === 'shake');
+    const shake = entity.effects && entity.effects.find(e => e.type === 'shake');
     if (shake) {
       const p = 1 - shake.timer / shake.duration;
       const eased = shake.ease === 'out' ? (1 - p) : 1;
@@ -125,7 +126,7 @@ class GameplayRenderer {
 
     // Flash overlay on sprites only
     if (graphic && frame) {
-      const flash = entity.effects.find(e => e.type === 'flash');
+      const flash = entity.effects && entity.effects.find(e => e.type === 'flash');
       if (flash) {
         const flashGfx = flash.color === '#fff' ? graphic.flashWhiteImage : graphic.flashImage;
         const progress = flash.timer / flash.duration;
@@ -152,6 +153,29 @@ class GameplayRenderer {
         ctx.rect(h[0] * s, h[2] * s, (h[1] - h[0]) * s, (h[3] - h[2]) * s);
         ctx.stroke();
       }
+    }
+  }
+
+  renderHud(hudLayer, ctx) {
+    if (!hudLayer) return;
+    const s = this.scale;
+    for (const entity of hudLayer) {
+      if (!entity.text || entity.opacity <= 0) continue;
+      ctx.save();
+      ctx.fillStyle = entity.color;
+      ctx.globalAlpha = entity.opacity / 100;
+      drawText(ctx, entity.text, {
+        x: entity.x * s,
+        y: entity.y * s,
+        width: (entity.width || 0) * s,
+        height: (entity.height || 0) * s,
+        fontSize: entity.fontSize * s,
+        font: entity.font,
+        align: entity.align,
+        vAlign: entity.vAlign,
+        // debug: true,
+      });
+      ctx.restore();
     }
   }
 }

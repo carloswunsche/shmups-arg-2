@@ -6,6 +6,7 @@ const RENDER_LAYERS = [
   'player_bullets',
   'players',
   'enemy_bullets',
+  'hud',
 ];
 
 const MAX_POOL_ERRORS = 5;

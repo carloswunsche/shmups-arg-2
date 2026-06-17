@@ -209,7 +209,7 @@
           ]
         }
       ],
-      "startBonus": 1009,
+      "startBonus": 1000,
       "decay": 1,
       "releasesPortionOf": 3,
       "description": "-- MIDBOSS"

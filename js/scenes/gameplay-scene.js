@@ -3,8 +3,6 @@ import BlockSequencer from "../game/block-sequencer.js";
 import EventBus from "../core/event-bus.js";
 import Background from "../game/background.js";
 import Debug from "../core/debug.js";
-import Hud from "../game/hud.js";
-import HudRenderer from "../render/hud-renderer.js";
 import GameState from "../game/game-state.js";
 import Player from "../entities/player.js";
 import PlayerBullet from "../entities/player-bullet.js";
@@ -17,6 +15,10 @@ import Midboss1 from "../entities/midboss1.js";
 import Brick1 from "../entities/brick1.js";
 import EnemyBullet from "../entities/enemy-bullet.js";
 import { setupDeathEffects } from "../game/death-effects.js";
+import ScoreDisplay from "../entities/hud/score-display.js";
+import WaveTicDisplay from "../entities/hud/wave-tic-display.js";
+import WaveBonusDisplay from "../entities/hud/wave-bonus-display.js";
+import PreviousBonusDisplay from "../entities/hud/previous-bonus-display.js";
 
 
 class GameplayScene {
@@ -32,8 +34,6 @@ class GameplayScene {
     this.blockSequencer = new BlockSequencer();
     this.blockSequencer.events = this.events;
     this.gameState = new GameState(this.events);
-    this.hud = new Hud(this.gameState, this.events);
-    this.hudRenderer = new HudRenderer(this.renderer);
     this.tic = 0;
     this._processTic = 0;
     this._pendingSpawns = [];
@@ -46,6 +46,10 @@ class GameplayScene {
     this._registerEntities();
     this.entityManager.prepare(this.assets.graphics.entities);
     this.entityManager.spawn([['Player']], this.renderer.width, this.renderer.height);
+    this.entityManager.spawn([['ScoreDisplay', { gameState: this.gameState }]], this.renderer.width, this.renderer.height);
+    this.entityManager.spawn([['WaveTicDisplay']], this.renderer.width, this.renderer.height);
+    this.entityManager.spawn([['WaveBonusDisplay']], this.renderer.width, this.renderer.height);
+    this.entityManager.spawn([['PreviousBonusDisplay']], this.renderer.width, this.renderer.height);
 
     this._setupStage();
     this._setupCollisions();
@@ -67,6 +71,10 @@ class GameplayScene {
     this.entityManager.register(Midboss1, 3, 'enemies_air');
     this.entityManager.register(Brick1, 15, 'enemies_air');
     this.entityManager.register(EnemyBullet, 50, 'enemy_bullets');
+    this.entityManager.register(ScoreDisplay, 1, 'hud');
+    this.entityManager.register(WaveTicDisplay, 1, 'hud');
+    this.entityManager.register(WaveBonusDisplay, 1, 'hud');
+    this.entityManager.register(PreviousBonusDisplay, 1, 'hud');
   }
 
   _setupStage() {
@@ -277,7 +285,6 @@ class GameplayScene {
     input.commitState();
 
     this.blockSequencer.fire(this.tic, this._fireCallbacks);
-    this.hud.update(1);
 
     // Drain pending spawns in place
     let write = 0;
@@ -364,8 +371,6 @@ class GameplayScene {
       background: this.background,
       entities: this.entityManager.activeEntities,
       graphics: this.assets.graphics.entities,
-      hud: this.hud,
-      hudRenderer: this.hudRenderer,
       debug,
     });
   }
