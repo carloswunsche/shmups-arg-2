@@ -1,4 +1,21 @@
+type InputState = {
+  up: boolean;
+  down: boolean;
+  left: boolean;
+  right: boolean;
+  buttonA: boolean;
+  buttonB: boolean;
+};
+
 class InputManager {
+  isEnabled: boolean;
+  gamepad: Gamepad | null | undefined;
+  touchAxisDistance: number;
+  state: InputState;
+  stateLive: InputState;
+  _gpState: InputState;
+  _initialized: boolean;
+
   constructor() {
     this.isEnabled = true;
     this.gamepad = undefined;
@@ -35,7 +52,9 @@ class InputManager {
 
     /* Clear stuck keys when window loses focus */
     window.addEventListener('blur', () => {
-      for (const btn of Object.keys(this.stateLive)) this.stateLive[btn] = false;
+      for (const btn of Object.keys(this.stateLive) as (keyof InputState)[]) {
+        this.stateLive[btn] = false;
+      }
     });
 
     /* ------------------------------------------------- */
@@ -46,9 +65,9 @@ class InputManager {
     const buttonB = document.querySelector('[data-buttonB]');
 
     if (analog) {
-      analog.addEventListener('touchstart', event => this.setStateUsingAnalogTouch(event));
+      analog.addEventListener('touchstart', event => this.setStateUsingAnalogTouch(event as TouchEvent));
       analog.addEventListener('touchmove',  event => {
-          this.setStateUsingAnalogTouch(event);
+          this.setStateUsingAnalogTouch(event as TouchEvent);
           event.preventDefault(); // Prevent touch scrolling on mobile
         }, {passive: false} // Also required to prevent scrolling
       );
@@ -57,19 +76,19 @@ class InputManager {
     }
 
     if (buttonA) {
-      buttonA.addEventListener('touchstart',  () => this.stateLive.buttonA = true);
-      buttonA.addEventListener('touchend',    () => this.stateLive.buttonA = false);
-      buttonA.addEventListener('touchcancel', () => this.stateLive.buttonA = false);
+      buttonA.addEventListener('touchstart',  () => { this.stateLive.buttonA = true; });
+      buttonA.addEventListener('touchend',    () => { this.stateLive.buttonA = false; });
+      buttonA.addEventListener('touchcancel', () => { this.stateLive.buttonA = false; });
     }
 
     if (buttonB) {
-      buttonB.addEventListener('touchstart',  () => this.stateLive.buttonB = true);
-      buttonB.addEventListener('touchend',    () => this.stateLive.buttonB = false);
-      buttonB.addEventListener('touchcancel', () => this.stateLive.buttonB = false);
+      buttonB.addEventListener('touchstart',  () => { this.stateLive.buttonB = true; });
+      buttonB.addEventListener('touchend',    () => { this.stateLive.buttonB = false; });
+      buttonB.addEventListener('touchcancel', () => { this.stateLive.buttonB = false; });
     }
   }
 
-  setStateUsingKeyboard(keyCode, isPressed) {
+  setStateUsingKeyboard(keyCode: string, isPressed: boolean) {
     switch (keyCode) {
       case 'ArrowUp':    this.stateLive.up      = isPressed; break;
       case 'ArrowRight': this.stateLive.right   = isPressed; break;
@@ -83,7 +102,9 @@ class InputManager {
   setStateFromGamepad() {
     this.gamepad = navigator.getGamepads()[0];
     if (!this.gamepad) {
-      for (const btn of Object.keys(this._gpState)) this._gpState[btn] = false;
+      for (const btn of Object.keys(this._gpState) as (keyof InputState)[]) {
+        this._gpState[btn] = false;
+      }
       return;
     }
     this._gpState.up      = this.gamepad.buttons[12].pressed;
@@ -94,7 +115,7 @@ class InputManager {
     this._gpState.buttonB = this.gamepad.buttons[1].pressed;
   }
 
-  setStateUsingAnalogTouch(event, fingerWasRemoved) {
+  setStateUsingAnalogTouch(event: TouchEvent | null, fingerWasRemoved?: boolean) {
     if (fingerWasRemoved) {
       this.stateLive.up    = false;
       this.stateLive.down  = false;
@@ -103,8 +124,8 @@ class InputManager {
       return;
     }
 
-    const touch = event.targetTouches[0];
-    const rect  = touch.target.getBoundingClientRect();
+    const touch = event!.targetTouches[0];
+    const rect  = (touch.target as Element).getBoundingClientRect();
     const axisX = touch.clientX - rect.left - rect.width  / 2;
     const axisY = touch.clientY - rect.top  - rect.height / 2;
     const d = this.touchAxisDistance;
@@ -117,11 +138,13 @@ class InputManager {
 
   commitState() {
     if (!this.isEnabled) {
-      for (const btn of Object.keys(this.state)) this.state[btn] = false;
+      for (const btn of Object.keys(this.state) as (keyof InputState)[]) {
+        this.state[btn] = false;
+      }
       return;
     }
     this.setStateFromGamepad();
-    for (const btn of Object.keys(this.state)) {
+    for (const btn of Object.keys(this.state) as (keyof InputState)[]) {
       this.state[btn] = this.stateLive[btn] || this._gpState[btn];
     }
   }
