@@ -109,7 +109,7 @@ aside {
   /* padding: 12px; */
 }
 #backgroundPanel.hidden { display: none; }
-#backgroundPanel .hint { margin: 6px 0 10px; display: block; }
+/* #backgroundPanel .hint { margin: 6px 0 10px; display: block; } */
 
 .sidebar-header {
   display: flex;
@@ -430,10 +430,10 @@ aside {
   white-space: nowrap;
 }
 
-.field-row .hint {
+/* .field-row .hint {
   font-size: 10px;
   color: var(--text2);
-}
+} */
 
 .inline-label {
   font-size: 12px;
@@ -944,25 +944,25 @@ aside {
   margin-top: 6px;
 }
 
-.per-spawn-hint {
+/* .per-spawn-hint {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 4px;
   font-size: 0.85em;
   color: var(--text-dim);
-}
-.per-spawn-hint .hint-badge {
+} */
+/* .per-spawn-hint .hint-badge {
   background: var(--accent, #5af);
   color: #000;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 8px;
   font-size: 0.85em;
-}
-.per-spawn-hint .hint-detail {
+} */
+/* .per-spawn-hint .hint-detail {
   font-family: monospace;
-}
+} */
 
 .field-row .ev-spawn-count-minus,
 .field-row .ev-spawn-count-plus {
@@ -1220,11 +1220,11 @@ footer {
   color: var(--text2);
   letter-spacing: 1px;
 }
-#blockHint {
+/* #blockHint {
   font-size: 11px;
   color: var(--text2);
   font-style: italic;
-}
+} */
 #blockMeta .wave-only.hidden { display: none; }
 #blockSkipSpeedMul { width: 64px; }
 #blockSkipTrans { width: 64px; }
@@ -1419,7 +1419,7 @@ footer {
   color: var(--text2);
   letter-spacing: 1px;
 }
-#setDetailHint { margin-left: 8px; }
+/* #setDetailHint { margin-left: 8px; } */
 
 #setQuota { width: 56px; }
 #btnAutoQuota {

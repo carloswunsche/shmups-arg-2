@@ -648,17 +648,17 @@ function perSpawnSummary(e) {
     .join(', ');
 }
 
-function refreshPerSpawnHint(card, ev) {
-  const hint = card.querySelector('.per-spawn-hint');
-  if (!hint) return;
-  if (hasPerSpawnLists(ev)) {
-    hint.classList.remove('hidden');
-    const detail = hint.querySelector('.hint-detail');
-    if (detail) detail.textContent = perSpawnSummary(ev);
-  } else {
-    hint.classList.add('hidden');
-  }
-}
+// function refreshPerSpawnHint(card, ev) {
+//   const hint = card.querySelector('.per-spawn-hint');
+//   if (!hint) return;
+//   if (hasPerSpawnLists(ev)) {
+//     hint.classList.remove('hidden');
+//     const detail = hint.querySelector('.hint-detail');
+//     if (detail) detail.textContent = perSpawnSummary(ev);
+//   } else {
+//     hint.classList.add('hidden');
+//   }
+// }
 
 function download(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
