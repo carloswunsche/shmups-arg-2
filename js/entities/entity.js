@@ -167,21 +167,21 @@ class Entity {
 
   updateDying(vw, vh) {
     const def = this.deathDef;
-    this.momentumVx *= def.momentumDecay;
-    this.momentumVy *= def.momentumDecay;
+    this.momentumVx *= def.motion.momentumDecay;
+    this.momentumVy *= def.motion.momentumDecay;
     this.x += this.momentumVx;
     this.y += this.momentumVy;
-    if (def.drift) {
+    if (def.motion.drift) {
       if (this.driftVx === undefined) {
         const dir = this.momentumVx >= 0 ? 1 : -1;
-        this.driftVx = dir * (def.driftVxRange[0] + Math.random() * (def.driftVxRange[1] - def.driftVxRange[0]));
+        this.driftVx = dir * (def.motion.driftVxRange[0] + Math.random() * (def.motion.driftVxRange[1] - def.motion.driftVxRange[0]));
       }
       this.x += this.driftVx;
-      this.y += def.driftVy;
+      this.y += def.motion.driftVy;
       this.driftVx *= 0.995;
     }
-    if (def.shrinkFade && def.duration > 0) {
-      const t = Math.max(0, this.deathTimer / def.duration);
+    if (def.motion.shrinkFade && def.timing.duration > 0) {
+      const t = Math.max(0, this.deathTimer / def.timing.duration);
       this.scale = t;
       this.opacity = t * 100;
     }

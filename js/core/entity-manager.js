@@ -111,7 +111,7 @@ class EntityManager {
       for (let i = 0; i < layer.length; i++) {
         const e = layer[i];
         if (e.dying) {
-          if (e.deathDef.burstInterval > 0 && e.deathTimer % e.deathDef.burstInterval === 0 && events) {
+          if (e.deathDef.timing.burstInterval > 0 && e.deathTimer % e.deathDef.timing.burstInterval === 0 && events) {
             events.emit('entity.dying.explosion', e);
           }
           if (e.deathTimer <= 0) {
@@ -130,11 +130,11 @@ class EntityManager {
           continue;
         }
         if (e.hp <= 0) {
-          if (e.deathDef.duration > 0) {
+          if (e.deathDef.timing.duration > 0) {
             e.dying = true;
-            e.deathTimer = e.deathDef.duration;
+            e.deathTimer = e.deathDef.timing.duration;
             if (events) events.emit('entity.dying.start', e);
-            if (e.deathDef.burstInterval && events) events.emit('entity.dying.explosion', e);
+            if (e.deathDef.timing.burstInterval && events) events.emit('entity.dying.explosion', e);
           } else {
             dead.push(e);
             if (events) events.emit('entity.killed', e);

@@ -1,4 +1,4 @@
-import Particle from "../entities/particle.js";
+import { spawnExplosion, spawnBang } from "./particle-factory.js";
 
 const DEFAULT_WIDTH_FALLBACK = 12;
 
@@ -12,43 +12,50 @@ const offsetAround = (entity, spread) => {
 
 export function setupDeathEffects(events, entityManager, vw, vh) {
   events.on('enemy.damaged', ({ enemy }) => {
-    const cfg = enemy.deathDef.damageFlash;
+    const cfg = enemy.deathDef.flash.damageFlash;
     if (cfg) enemy.addEffect('flash', cfg);
   });
 
   events.on('entity.dying.start', (entity) => {
     const def = entity.deathDef;
-    if (def.startBurstCount > 0) {
-      const { x, y } = offsetAround(entity, def.burstSpread);
-      entityManager.spawn(Particle.explosion(x, y, def.startBurstCount), vw, vh);
+    if (def.bursts.startBurstCount > 0) {
+      const { x, y } = offsetAround(entity, def.bursts.burstSpread);
+      entityManager.spawn(spawnExplosion(x, y, def.bursts.startBurstCount), vw, vh);
     }
-    if (def.dyingFlash) entity.addEffect('flash', def.dyingFlash);
+    if (def.flash.dyingFlash) entity.addEffect('flash', def.flash.dyingFlash);
   });
 
   events.on('entity.dying.explosion', (entity) => {
     const def = entity.deathDef;
-    if (def.intervalBurstCount > 0) {
-      const { x, y } = offsetAround(entity, def.burstSpread);
-      entityManager.spawn(Particle.explosion(x, y, def.intervalBurstCount), vw, vh);
+    if (def.bursts.intervalBurstCount > 0) {
+      const { x, y } = offsetAround(entity, def.bursts.burstSpread);
+      entityManager.spawn(spawnExplosion(x, y, def.bursts.intervalBurstCount), vw, vh);
     }
   });
 
   events.on('entity.killed', (entity) => {
     const def = entity.deathDef;
-    if (!def || def.bangSizeMultiplier <= 0) return;
+    if (!def || def.bang.bangSizeMultiplier <= 0) return;
     const sz = entity.width || 8;
+    const b = def.bang;
     const opts = {
-      opacityDecay: def.emberOpacityDecay,
-      scaleMin: def.emberScaleMin,
-      scaleMax: def.emberScaleMax,
-      speedMin: def.emberSpeedMin,
-      speedMax: def.emberSpeedMax,
+      opacityDecay: b.emberOpacityDecay,
+      scaleMin: b.emberScaleMin,
+      scaleMax: b.emberScaleMax,
+      speedMin: b.emberSpeedMin,
+      speedMax: b.emberSpeedMax,
     };
-    if (def.emberPalette) opts.palette = def.emberPalette;
-    if (def.flashCycle) opts.flashCycle = def.flashCycle;
-    entityManager.spawn(Particle.bang(entity.x, entity.y, sz * def.bangSizeMultiplier, def.emberCount, opts), vw, vh);
-    if (def.onKilled) {
-      entityManager.spawn(def.onKilled(entity), vw, vh);
+    if (b.emberPalette) opts.palette = b.emberPalette;
+    if (b.flashCycle) opts.flashCycle = b.flashCycle;
+    entityManager.spawn(spawnBang(entity.x, entity.y, sz * b.bangSizeMultiplier, b.emberCount, opts), vw, vh);
+    if (def.killSpawns) {
+      for (const ks of def.killSpawns) {
+        const spawned = [];
+        for (let i = 0; i < ks.count; i++) {
+          spawned.push([ks.class, { x: entity.x, y: entity.y, angle: ks.angleStep * i, speed: ks.speed }]);
+        }
+        entityManager.spawn(spawned, vw, vh);
+      }
     }
   });
 }
