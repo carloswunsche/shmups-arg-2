@@ -30,10 +30,17 @@ class MainMenuScene {
     ctx.font = `${8 * scale}px "PICO-8", monospace`;
     ctx.fillText('shmups arg 2', cw / 2, (height / 2 - 20) * scale);
 
+
     if (Math.floor(this.tic / 30) % 2 === 0) {
       ctx.font = `${4 * scale}px "PICO-8", monospace`;
       ctx.fillText('press z to start', cw / 2, (height / 2 + 25) * scale);
     }
+
+    ctx.font = `${4 * scale}px "PICO-8", monospace`;
+    ctx.fillText('backtick for debug mode', cw / 2, (height / 1.3) * scale);
+    ctx.fillText('o for frame advance', cw / 2, (height / 1.22) * scale);
+    ctx.fillText('p to unpause', cw / 2, (height / 1.15) * scale);
+    ctx.fillText('r to reset', cw / 2, (height / 1.1) * scale);
   }
 
   exit() {}
