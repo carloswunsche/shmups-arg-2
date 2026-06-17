@@ -38,8 +38,8 @@ function bootstrap() {
 }
 
 function setupScenes() {
-  sceneManager.scenes.mainMenu = new MainMenuScene(sceneManager, viewport, input);
-  sceneManager.scenes.stage1   = new GameplayScene(sceneManager, renderer, input, assets, 'stage1');
+  (sceneManager.scenes as Record<string, unknown>).mainMenu = new MainMenuScene(sceneManager, viewport, input);
+  (sceneManager.scenes as Record<string, unknown>).stage1   = new GameplayScene(sceneManager, renderer, input, assets, 'stage1');
 }
 
 function startGame() {

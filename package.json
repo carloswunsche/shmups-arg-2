@@ -1,0 +1,29 @@
+{
+  "name": "shmups-arg-2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carloswunsche/shmups-arg-2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/carloswunsche/shmups-arg-2/issues"
+  },
+  "homepage": "https://github.com/carloswunsche/shmups-arg-2#readme",
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^6.3.5"
+  }
+}
